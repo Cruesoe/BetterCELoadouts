@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>BetterCELoadouts</RootNamespace>
+    <AssemblyName>BetterCELoadouts</AssemblyName>
+    <Nullable>enable</Nullable>
+    <UseHarmony>true</UseHarmony>
+    <UnityModules>CoreModule;IMGUIModule;TextRenderingModule;InputLegacyModule</UnityModules>
+  </PropertyGroup>
+</Project>

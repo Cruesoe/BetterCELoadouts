@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <name>Better CE Loadouts</name>
+  <author>Cruesoe</author>
+  <packageId>cruesoe.betterceloadouts</packageId>
+  <modVersion>261027</modVersion>
+  <supportedVersions>
+    <li>1.6</li>
+    <li>1.7</li>
+  </supportedVersions>
+  <description>Easier navigation for Combat Extended's Manage loadouts window, keeping its look and every button where it was.
+
+A list of all your loadouts runs down the left of the window. Child loadouts sit indented under their parent loadout, so it's clear what inherits from what, and each parent can be collapsed. Click a loadout to edit it. The number beside a loadout is how many colonists use it.
+
+When adding items, the ones your colony has are listed first, then everything else (still greyed out, as in Combat Extended).
+
+Requires Combat Extended. Safe to add or remove mid-save: your loadouts belong to Combat Extended and are unchanged.</description>
+  <modDependencies>
+    <li>
+      <packageId>brrainz.harmony</packageId>
+      <displayName>Harmony</displayName>
+      <steamWorkshopUrl>steam://url/CommunityFilePage/2009463077</steamWorkshopUrl>
+      <downloadUrl>https://github.com/pardeike/HarmonyRimWorld/releases/latest</downloadUrl>
+    </li>
+    <li>
+      <packageId>CETeam.CombatExtended</packageId>
+      <displayName>Combat Extended</displayName>
+      <steamWorkshopUrl>steam://url/CommunityFilePage/2890901044</steamWorkshopUrl>
+      <downloadUrl>https://github.com/CombatExtended-Continued/CombatExtended/releases</downloadUrl>
+    </li>
+  </modDependencies>
+  <loadAfter>
+    <li>brrainz.harmony</li>
+    <li>CETeam.CombatExtended</li>
+  </loadAfter>
+</ModMetaData>
