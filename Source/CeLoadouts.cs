@@ -22,6 +22,9 @@ namespace BetterCELoadouts
         private static readonly FieldInfo? DefaultField = Field(LoadoutType, "defaultLoadout");
         private static readonly PropertyInfo? LabelCapProperty = Property(LoadoutType, "LabelCap");
         private static readonly PropertyInfo? ParentProperty = Property(LoadoutType, "ParentLoadout");
+        private static readonly PropertyInfo? ParentIdProperty = Property(LoadoutType, "parentID");
+        private static readonly PropertyInfo? UniqueIdProperty = Property(LoadoutType, "UniqueID");
+        private static readonly PropertyInfo? AncestorsProperty = Property(LoadoutType, "Ancestors");
         private static readonly PropertyInfo? CurrentProperty = Property(DialogType, "CurrentLoadout");
         private static readonly FieldInfo? SourceField = Field(DialogType, "_source");
         private static readonly FieldInfo? SourceGenericField = Field(DialogType, "_sourceGeneric");
@@ -30,6 +33,8 @@ namespace BetterCELoadouts
 
         public static bool Ready => DialogType != null && LoadoutsProperty != null && AssignedProperty != null
             && DefaultField != null && LabelCapProperty != null && ParentProperty != null && CurrentProperty != null;
+
+        public static bool CanReparent => ParentIdProperty?.CanWrite == true && UniqueIdProperty != null && AncestorsProperty != null;
 
         public static bool CanSort => SourceField != null && SourceGenericField != null && GreyedOutField != null && LambdaProperty != null;
 
@@ -50,6 +55,18 @@ namespace BetterCELoadouts
         public static string Label(object loadout) => LabelCapProperty!.GetValue(loadout) as string ?? "";
 
         public static object? Parent(object loadout) => ParentProperty!.GetValue(loadout);
+
+        // Same rule as CE's Parent loadout menu: a loadout can't become a parent of itself or of its own ancestors.
+        public static bool CanBeParent(object child, object parent)
+        {
+            return parent != child && !(AncestorsProperty!.GetValue(parent) is IEnumerable ancestors && ancestors.Cast<object>().Contains(child));
+        }
+
+        // Sets the parent the way CE's Parent loadout menu does; null makes it a top-level loadout.
+        public static void SetParent(object child, object? parent)
+        {
+            ParentIdProperty!.SetValue(child, parent == null ? 0 : (int)UniqueIdProperty!.GetValue(parent)!);
+        }
 
         public static object? Current(object dialog) => CurrentProperty!.GetValue(dialog);
 

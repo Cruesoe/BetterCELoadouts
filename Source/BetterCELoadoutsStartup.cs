@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using HarmonyLib;
 using RimWorld;
@@ -28,6 +29,15 @@ namespace BetterCELoadouts
             harmony.Patch(AccessTools.Method(dialog, "DoWindowContents"),
                 prefix: new HarmonyMethod(typeof(BetterCELoadoutsStartup), nameof(DoWindowContentsPrefix)),
                 finalizer: new HarmonyMethod(typeof(BetterCELoadoutsStartup), nameof(DoWindowContentsFinalizer)));
+
+            if (WeaponTip.Target() is MethodInfo tip)
+            {
+                harmony.Patch(tip, postfix: new HarmonyMethod(typeof(WeaponTip), nameof(WeaponTip.Postfix)));
+            }
+            else
+            {
+                Log.Warning("[Better CE Loadouts] Combat Extended's item tooltip has changed; weapon tooltips are left unchanged.");
+            }
 
             if (CeLoadouts.CanSort)
             {

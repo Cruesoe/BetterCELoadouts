@@ -1,10 +1,13 @@
 using System.Collections.Generic;
+using RimWorld;
 using UnityEngine;
 using Verse;
+using Verse.Sound;
 
 namespace BetterCELoadouts
 {
     // The loadout tree drawn down the left of CE's Manage loadouts window: parents with their children indented beneath.
+    // Drag a loadout onto another to make it a child, or onto the header or empty space to make it top-level.
     [StaticConstructorOnStartup]
     internal static class LoadoutNavigator
     {
@@ -17,10 +20,17 @@ namespace BetterCELoadouts
         private const float RowHeight = 28f;
         private const float Indent = 14f;
         private const float ToggleSize = 18f;
+        private const float DragThreshold = 6f;
 
         private static readonly Texture2D DarkBackground = SolidColorMaterials.NewSolidColorTexture(0f, 0f, 0f, .2f);
+        private static readonly Color GhostBackground = new(0f, 0f, 0f, .6f);
         private static readonly HashSet<object> Collapsed = new();
         private static Vector2 scrollPosition;
+
+        // Loadout under the mouse since the button went down, and whether it has moved far enough to count as a drag.
+        private static object? pressed;
+        private static Vector2 pressPosition;
+        private static bool dragging;
 
         private readonly struct Row
         {
@@ -39,12 +49,19 @@ namespace BetterCELoadouts
         public static void Draw(Rect rect, object dialog)
         {
             Text.Font = GameFont.Small;
-            Rect headerRect = new(rect.x, rect.y, rect.width, HeaderHeight);
-            Text.Anchor = TextAnchor.MiddleLeft;
-            Widgets.Label(headerRect, "CE_Loadouts".Translate());
-            Text.Anchor = TextAnchor.UpperLeft;
+            Event e = Event.current;
+            if (e.rawType == EventType.MouseDown)
+            {
+                pressed = null;
+                dragging = false;
+            }
 
+            Rect headerRect = new(rect.x, rect.y, rect.width, HeaderHeight);
             Rect listRect = new(rect.x, headerRect.yMax + Margin * 2, rect.width, rect.height - HeaderHeight - Margin * 2);
+            bool canReparent = CeLoadouts.CanReparent;
+            bool clearingParent = dragging && pressed != null && CeLoadouts.Parent(pressed) != null;
+            DrawHeader(headerRect, clearingParent);
+
             List<Row> rows = BuildRows(CeLoadouts.Loadouts());
             if (rows.Count == 0)
             {
@@ -56,6 +73,8 @@ namespace BetterCELoadouts
 
             Dictionary<object, int> pawnCounts = CeLoadouts.PawnCounts();
             object? current = CeLoadouts.Current(dialog);
+            bool overHeader = Mouse.IsOver(headerRect);
+            bool overList = Mouse.IsOver(listRect);
             Rect viewRect = new(0f, 0f, listRect.width, rows.Count * RowHeight);
             if (viewRect.height > listRect.height)
             {
@@ -63,16 +82,69 @@ namespace BetterCELoadouts
             }
 
             Widgets.BeginScrollView(listRect, ref scrollPosition, viewRect);
+            object? hovered = null;
+            int hoveredIndex = Mathf.FloorToInt(e.mousePosition.y / RowHeight);
+            if (overList && hoveredIndex >= 0 && hoveredIndex < rows.Count)
+            {
+                hovered = rows[hoveredIndex].Loadout;
+            }
+            object? target = dragging && hovered != null && CeLoadouts.CanBeParent(pressed!, hovered) ? hovered : null;
+
             for (int i = 0; i < rows.Count; i++)
             {
-                DrawRow(new Rect(0f, i * RowHeight, viewRect.width, RowHeight), rows[i], i, dialog, current, pawnCounts);
+                DrawRow(new Rect(0f, i * RowHeight, viewRect.width, RowHeight), rows[i], i, current, target, pawnCounts);
+            }
+
+            if (pressed != null && canReparent && !dragging && e.type == EventType.MouseDrag && (e.mousePosition - pressPosition).magnitude > DragThreshold)
+            {
+                dragging = true;
             }
             Widgets.EndScrollView();
 
+            if (pressed != null && e.rawType == EventType.MouseUp)
+            {
+                if (dragging)
+                {
+                    Drop(pressed, target, overHeader || (overList && hovered == null));
+                }
+                else if (hovered == pressed && pressed != current)
+                {
+                    CeLoadouts.Select(dialog, pressed);
+                }
+                pressed = null;
+                dragging = false;
+                e.Use();
+            }
+
+            if (dragging && pressed != null)
+            {
+                DrawGhost(pressed);
+            }
             Widgets.DrawLineVertical(rect.xMax + Gap / 2f, listRect.y, listRect.height);
         }
 
-        private static void DrawRow(Rect row, Row entry, int index, object dialog, object? current, Dictionary<object, int> pawnCounts)
+        // Shows where to drop to make a loadout top-level while one with a parent is being dragged.
+        private static void DrawHeader(Rect rect, bool clearingParent)
+        {
+            Text.Anchor = TextAnchor.MiddleLeft;
+            if (clearingParent)
+            {
+                if (Mouse.IsOver(rect))
+                {
+                    Widgets.DrawHighlight(rect);
+                }
+                GUI.color = Color.grey;
+                Widgets.Label(rect, "BetterCELoadouts_DropToClearParent".Translate());
+                GUI.color = Color.white;
+            }
+            else
+            {
+                Widgets.Label(rect, "CE_Loadouts".Translate());
+            }
+            Text.Anchor = TextAnchor.UpperLeft;
+        }
+
+        private static void DrawRow(Rect row, Row entry, int index, object? current, object? target, Dictionary<object, int> pawnCounts)
         {
             if (index % 2 == 0)
             {
@@ -82,12 +154,16 @@ namespace BetterCELoadouts
             {
                 Widgets.DrawHighlightSelected(row);
             }
+            if (entry.Loadout == target)
+            {
+                Widgets.DrawBox(row);
+            }
             Widgets.DrawHighlightIfMouseover(row);
 
             float x = row.x + Margin + entry.Depth * Indent;
+            Rect toggleRect = new(x, row.y + (row.height - ToggleSize) / 2f, ToggleSize, ToggleSize);
             if (entry.HasChildren)
             {
-                Rect toggleRect = new(x, row.y + (row.height - ToggleSize) / 2f, ToggleSize, ToggleSize);
                 bool collapsed = Collapsed.Contains(entry.Loadout);
                 if (Widgets.ButtonImage(toggleRect, collapsed ? TexButton.Reveal : TexButton.Collapse))
                 {
@@ -120,14 +196,44 @@ namespace BetterCELoadouts
             }
             Text.Anchor = TextAnchor.UpperLeft;
 
-            if (Mouse.IsOver(row))
+            Event e = Event.current;
+            if (pressed == null && Mouse.IsOver(row))
             {
                 TooltipHandler.TipRegion(row, Tooltip(entry.Loadout, pawns));
             }
-            if (Widgets.ButtonInvisible(labelRect) && entry.Loadout != current)
+            if (e.type == EventType.MouseDown && e.button == 0 && Mouse.IsOver(row) && !(entry.HasChildren && Mouse.IsOver(toggleRect)))
             {
-                CeLoadouts.Select(dialog, entry.Loadout);
+                pressed = entry.Loadout;
+                pressPosition = e.mousePosition;
+                e.Use();
             }
+        }
+
+        private static void Drop(object loadout, object? target, bool toTopLevel)
+        {
+            if (target != null && CeLoadouts.Parent(loadout) != target)
+            {
+                CeLoadouts.SetParent(loadout, target);
+                Collapsed.Remove(target);
+                SoundDefOf.Tick_High.PlayOneShotOnCamera();
+            }
+            else if (target == null && toTopLevel && CeLoadouts.Parent(loadout) != null)
+            {
+                CeLoadouts.SetParent(loadout, null);
+                SoundDefOf.Tick_High.PlayOneShotOnCamera();
+            }
+        }
+
+        // The dragged loadout's name, following the mouse.
+        private static void DrawGhost(object loadout)
+        {
+            string label = CeLoadouts.Label(loadout);
+            Vector2 mouse = Event.current.mousePosition;
+            Rect rect = new(mouse.x + 12f, mouse.y - RowHeight / 2f, Text.CalcSize(label).x + Margin * 2, RowHeight);
+            Widgets.DrawBoxSolid(rect, GhostBackground);
+            Text.Anchor = TextAnchor.MiddleCenter;
+            Widgets.Label(rect, label);
+            Text.Anchor = TextAnchor.UpperLeft;
         }
 
         private static string Tooltip(object loadout, int pawns)
