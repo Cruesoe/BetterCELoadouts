@@ -21,6 +21,7 @@ namespace BetterCELoadouts
         private const float Indent = 14f;
         private const float ToggleSize = 18f;
         private const float DragThreshold = 6f;
+        private const float DeleteSize = 16f;
 
         private static readonly Texture2D DarkBackground = SolidColorMaterials.NewSolidColorTexture(0f, 0f, 0f, .2f);
         private static readonly Color GhostBackground = new(0f, 0f, 0f, .6f);
@@ -56,8 +57,15 @@ namespace BetterCELoadouts
                 dragging = false;
             }
 
+            bool canManage = CeLoadouts.CanManage;
             Rect headerRect = new(rect.x, rect.y, rect.width, HeaderHeight);
-            Rect listRect = new(rect.x, headerRect.yMax + Margin * 2, rect.width, rect.height - HeaderHeight - Margin * 2);
+            Rect newRect = new(rect.x, rect.yMax - HeaderHeight, rect.width, HeaderHeight);
+            float listBottom = canManage ? newRect.y - Margin : rect.yMax;
+            Rect listRect = new(rect.x, headerRect.yMax + Margin * 2, rect.width, listBottom - headerRect.yMax - Margin * 2);
+            if (canManage && Widgets.ButtonText(newRect, "CE_NewLoadout".Translate()) && CeLoadouts.New() is object created)
+            {
+                CeLoadouts.Select(dialog, created);
+            }
             bool canReparent = CeLoadouts.CanReparent;
             bool clearingParent = dragging && pressed != null && CeLoadouts.Parent(pressed) != null;
             DrawHeader(headerRect, clearingParent);
@@ -92,7 +100,7 @@ namespace BetterCELoadouts
 
             for (int i = 0; i < rows.Count; i++)
             {
-                DrawRow(new Rect(0f, i * RowHeight, viewRect.width, RowHeight), rows[i], i, current, target, pawnCounts);
+                DrawRow(new Rect(0f, i * RowHeight, viewRect.width, RowHeight), rows[i], i, dialog, current, target, pawnCounts, canManage);
             }
 
             if (pressed != null && canReparent && !dragging && e.type == EventType.MouseDrag && (e.mousePosition - pressPosition).magnitude > DragThreshold)
@@ -144,7 +152,7 @@ namespace BetterCELoadouts
             Text.Anchor = TextAnchor.UpperLeft;
         }
 
-        private static void DrawRow(Rect row, Row entry, int index, object? current, object? target, Dictionary<object, int> pawnCounts)
+        private static void DrawRow(Rect row, Row entry, int index, object dialog, object? current, object? target, Dictionary<object, int> pawnCounts, bool canManage)
         {
             if (index % 2 == 0)
             {
@@ -160,7 +168,19 @@ namespace BetterCELoadouts
             }
             Widgets.DrawHighlightIfMouseover(row);
 
-            float x = row.x + Margin + entry.Depth * Indent;
+            // Delete buttons line up down the left edge, ahead of the tree's indentation.
+            Rect deleteRect = new(row.x + Margin, row.y + (row.height - DeleteSize) / 2f, DeleteSize, DeleteSize);
+            bool deletable = canManage && CeLoadouts.CanBeDeleted(entry.Loadout);
+            if (deletable && Widgets.ButtonImage(deleteRect, TexButton.Delete))
+            {
+                ConfirmDelete(dialog, entry.Loadout);
+            }
+            if (deletable && Mouse.IsOver(deleteRect))
+            {
+                TooltipHandler.TipRegion(deleteRect, "CE_DeleteLoadout".Translate());
+            }
+
+            float x = row.x + Margin + (canManage ? DeleteSize + Margin : 0f) + entry.Depth * Indent;
             Rect toggleRect = new(x, row.y + (row.height - ToggleSize) / 2f, ToggleSize, ToggleSize);
             if (entry.HasChildren)
             {
@@ -201,12 +221,34 @@ namespace BetterCELoadouts
             {
                 TooltipHandler.TipRegion(row, Tooltip(entry.Loadout, pawns));
             }
-            if (e.type == EventType.MouseDown && e.button == 0 && Mouse.IsOver(row) && !(entry.HasChildren && Mouse.IsOver(toggleRect)))
+            if (e.type == EventType.MouseDown && e.button == 0 && Mouse.IsOver(row)
+                && !(entry.HasChildren && Mouse.IsOver(toggleRect)) && !(deletable && Mouse.IsOver(deleteRect)))
             {
                 pressed = entry.Loadout;
                 pressPosition = e.mousePosition;
                 e.Use();
             }
+        }
+
+        // Asks first, since one click on the X deletes; CE's own delete then moves its colonists to the default loadout.
+        private static void ConfirmDelete(object dialog, object loadout)
+        {
+            Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation("BetterCELoadouts_ConfirmDelete".Translate(CeLoadouts.Label(loadout)), () =>
+            {
+                if (CeLoadouts.Current(dialog) == loadout)
+                {
+                    CeLoadouts.Select(dialog, null);
+                }
+                // CE keeps a cached parent after it's deleted, so children are made top-level first.
+                foreach (object child in CeLoadouts.Loadouts())
+                {
+                    if (CeLoadouts.Parent(child) == loadout)
+                    {
+                        CeLoadouts.SetParent(child, null);
+                    }
+                }
+                CeLoadouts.Remove(loadout);
+            }, true));
         }
 
         private static void Drop(object loadout, object? target, bool toTopLevel)

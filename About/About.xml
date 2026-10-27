@@ -10,7 +10,7 @@
   </supportedVersions>
   <description>Easier navigation for Combat Extended's Manage loadouts window, keeping its look and every button where it was.
 
-A list of all your loadouts runs down the left of the window. Child loadouts sit indented under their parent loadout, so it's clear what inherits from what, and each parent can be collapsed. Click a loadout to edit it. Drag a loadout onto another to make it a child of that loadout, or onto the list's header or empty space to make it top-level again. The number beside a loadout is how many colonists use it.
+A list of all your loadouts runs down the left of the window. Child loadouts sit indented under their parent loadout, so it's clear what inherits from what, and each parent can be collapsed. Click a loadout to edit it, use the red X beside it to delete it, or add one with New loadout at the bottom of the list (these replace Combat Extended's New and Delete buttons). Drag a loadout onto another to make it a child of that loadout, or onto the list's header or empty space to make it top-level again. The number beside a loadout is how many colonists use it.
 
 When adding items, the ones your colony has are listed first, then everything else (still greyed out, as in Combat Extended). A weapon's tooltip also shows its damage per second and whether it's one-handed (usable with a shield) or two-handed.
 

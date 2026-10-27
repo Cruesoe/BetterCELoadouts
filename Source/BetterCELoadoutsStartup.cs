@@ -30,6 +30,15 @@ namespace BetterCELoadouts
                 prefix: new HarmonyMethod(typeof(BetterCELoadoutsStartup), nameof(DoWindowContentsPrefix)),
                 finalizer: new HarmonyMethod(typeof(BetterCELoadoutsStartup), nameof(DoWindowContentsFinalizer)));
 
+            if (CeLoadouts.CanManage)
+            {
+                harmony.Patch(AccessTools.Method(dialog, "DoWindowContents"), transpiler: new HarmonyMethod(typeof(TopBar), nameof(TopBar.Transpiler)));
+            }
+            else
+            {
+                Log.Warning("[Better CE Loadouts] Combat Extended's new and delete loadout code has changed; its own buttons are kept.");
+            }
+
             if (WeaponTip.Target() is MethodInfo tip)
             {
                 harmony.Patch(tip, postfix: new HarmonyMethod(typeof(WeaponTip), nameof(WeaponTip.Postfix)));

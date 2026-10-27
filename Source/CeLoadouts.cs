@@ -25,7 +25,10 @@ namespace BetterCELoadouts
         private static readonly PropertyInfo? ParentIdProperty = Property(LoadoutType, "parentID");
         private static readonly PropertyInfo? UniqueIdProperty = Property(LoadoutType, "UniqueID");
         private static readonly PropertyInfo? AncestorsProperty = Property(LoadoutType, "Ancestors");
+        private static readonly FieldInfo? CanBeDeletedField = Field(LoadoutType, "canBeDeleted");
         private static readonly PropertyInfo? CurrentProperty = Property(DialogType, "CurrentLoadout");
+        private static readonly MethodInfo? NewMethod = DialogType == null ? null : AccessTools.Method(DialogType, "NewLoadout");
+        private static readonly MethodInfo? RemoveMethod = DialogType == null ? null : AccessTools.Method(DialogType, "RemoveLoadout");
         private static readonly FieldInfo? SourceField = Field(DialogType, "_source");
         private static readonly FieldInfo? SourceGenericField = Field(DialogType, "_sourceGeneric");
         private static readonly FieldInfo? GreyedOutField = Field(ItemType, "isGreyedOut");
@@ -35,6 +38,8 @@ namespace BetterCELoadouts
             && DefaultField != null && LabelCapProperty != null && ParentProperty != null && CurrentProperty != null;
 
         public static bool CanReparent => ParentIdProperty?.CanWrite == true && UniqueIdProperty != null && AncestorsProperty != null;
+
+        public static bool CanManage => CanBeDeletedField != null && NewMethod != null && RemoveMethod != null;
 
         public static bool CanSort => SourceField != null && SourceGenericField != null && GreyedOutField != null && LambdaProperty != null;
 
@@ -68,9 +73,16 @@ namespace BetterCELoadouts
             ParentIdProperty!.SetValue(child, parent == null ? 0 : (int)UniqueIdProperty!.GetValue(parent)!);
         }
 
+        public static bool CanBeDeleted(object loadout) => (bool)CanBeDeletedField!.GetValue(loadout)!;
+
+        // CE's own create and delete, which are also its multiplayer sync points.
+        public static object? New() => NewMethod!.Invoke(null, null);
+
+        public static void Remove(object loadout) => RemoveMethod!.Invoke(null, new[] { loadout });
+
         public static object? Current(object dialog) => CurrentProperty!.GetValue(dialog);
 
-        public static void Select(object dialog, object loadout) => CurrentProperty!.SetValue(dialog, loadout);
+        public static void Select(object dialog, object? loadout) => CurrentProperty!.SetValue(dialog, loadout);
 
         // Number of pawns assigned to each loadout.
         public static Dictionary<object, int> PawnCounts()
