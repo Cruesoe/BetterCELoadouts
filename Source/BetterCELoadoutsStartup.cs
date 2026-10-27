@@ -68,6 +68,7 @@ namespace BetterCELoadouts
         private static void DoWindowContentsPrefix(Window __instance, ref Rect canvas, out bool __state)
         {
             __state = false;
+            TopBar.HasLoadout = CeLoadouts.Current(__instance) != null;
             LoadoutNavigator.Draw(new Rect(canvas.x, canvas.y, LoadoutNavigator.Width, canvas.height), __instance);
             float offset = LoadoutNavigator.Width + LoadoutNavigator.Gap;
             Rect content = new(canvas.x + offset, canvas.y, canvas.width - offset, canvas.height);

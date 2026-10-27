@@ -25,6 +25,8 @@ namespace BetterCELoadouts
 
         private static readonly Texture2D DarkBackground = SolidColorMaterials.NewSolidColorTexture(0f, 0f, 0f, .2f);
         private static readonly Color GhostBackground = new(0f, 0f, 0f, .6f);
+        private static readonly Color DeleteColor = new(.85f, .25f, .25f);
+        private static readonly Color DeleteMouseoverColor = new(1f, .4f, .4f);
         private static readonly HashSet<object> Collapsed = new();
         private static Vector2 scrollPosition;
 
@@ -171,7 +173,7 @@ namespace BetterCELoadouts
             // Delete buttons line up down the left edge, ahead of the tree's indentation.
             Rect deleteRect = new(row.x + Margin, row.y + (row.height - DeleteSize) / 2f, DeleteSize, DeleteSize);
             bool deletable = canManage && CeLoadouts.CanBeDeleted(entry.Loadout);
-            if (deletable && Widgets.ButtonImage(deleteRect, TexButton.Delete))
+            if (deletable && Widgets.ButtonImage(deleteRect, TexButton.CloseXSmall, DeleteColor, DeleteMouseoverColor))
             {
                 ConfirmDelete(dialog, entry.Loadout);
             }

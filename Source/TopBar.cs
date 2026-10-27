@@ -6,17 +6,23 @@ using Verse;
 
 namespace BetterCELoadouts
 {
-    // Drops CE's New and Delete buttons from the top bar (the loadout list has its own) and closes the gaps they leave.
+    // Drops CE's Select, New and Delete buttons from the top bar (the loadout list does those) and closes up the rest.
     internal static class TopBar
     {
-        // CE's top bar: seven buttons 6px apart, New second and Delete fourth.
+        // CE's top bar: seven buttons 6px apart, in the order Select, New, Copy, Delete, Load, Save, Parent.
         private const float Margin = 6f;
         private const float BarHeight = 30f;
-        private const int NewSlot = 1;
-        private const int DeleteSlot = 3;
+        private const int LoadSlot = 4;
+
+        // Slots still drawn: Copy, Load, Save and Parent with a loadout selected; CE shows only Load without one.
+        private static readonly List<int> WithLoadout = new() { 2, LoadSlot, 5, 6 };
+        private static readonly List<int> WithoutLoadout = new() { LoadSlot };
 
         private static readonly MethodInfo ButtonText = AccessTools.Method(typeof(Widgets), nameof(Widgets.ButtonText),
             new[] { typeof(Rect), typeof(string), typeof(bool), typeof(bool), typeof(bool), typeof(TextAnchor?) });
+
+        // Set before CE draws each frame.
+        public static bool HasLoadout;
 
         public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
         {
@@ -36,12 +42,12 @@ namespace BetterCELoadouts
             if (rect.y == 0f && rect.height == BarHeight)
             {
                 float step = rect.width + Margin;
-                int slot = Mathf.RoundToInt(rect.x / step);
-                if (slot == NewSlot || slot == DeleteSlot)
+                int position = (HasLoadout ? WithLoadout : WithoutLoadout).IndexOf(Mathf.RoundToInt(rect.x / step));
+                if (position < 0)
                 {
                     return false;
                 }
-                rect.x = (slot - (slot > NewSlot ? 1 : 0) - (slot > DeleteSlot ? 1 : 0)) * step;
+                rect.x = position * step;
             }
             return Widgets.ButtonText(rect, label, drawBackground, doMouseoverSound, active, overrideTextAnchor);
         }
