@@ -155,14 +155,46 @@ namespace BetterCELoadouts
             {
                 TopBar.CopyRequested = true;
             }
-            if (IconButton(loadRect, LoadIcon, "CE_LoadLoadout".Translate(), true))
+            bool sets = LoadoutSets.Available;
+            if (IconButton(loadRect, LoadIcon, sets ? "BetterCELoadouts_LoadTip".Translate() : "CE_LoadLoadout".Translate(), true))
             {
-                TopBar.LoadRequested = true;
+                if (sets)
+                {
+                    Find.WindowStack.Add(new FloatMenu(new List<FloatMenuOption>
+                    {
+                        new("BetterCELoadouts_LoadOne".Translate(), () => TopBar.LoadRequested = true),
+                        new("BetterCELoadouts_LoadAll".Translate(), LoadoutSets.LoadAll),
+                    }));
+                }
+                else
+                {
+                    TopBar.LoadRequested = true;
+                }
             }
-            TaggedString saveTip = hasLoadout ? "CE_SaveLoadout".Translate() : "BetterCELoadouts_SelectToSave".Translate();
-            if (IconButton(saveRect, SaveIcon, saveTip, hasLoadout))
+
+            // With sets, Save is available whenever there's a loadout in the list; saving just the selected one needs a selection.
+            bool canSave = sets ? LoadoutSets.HasLoadouts : hasLoadout;
+            TaggedString saveTip = !canSave ? "BetterCELoadouts_NothingToSave".Translate()
+                : sets ? "BetterCELoadouts_SaveTip".Translate() : "CE_SaveLoadout".Translate();
+            if (IconButton(saveRect, SaveIcon, saveTip, canSave))
             {
-                TopBar.SaveRequested = true;
+                if (sets)
+                {
+                    FloatMenuOption saveOne = new("BetterCELoadouts_SaveOne".Translate(), hasLoadout ? () => TopBar.SaveRequested = true : null);
+                    if (!hasLoadout)
+                    {
+                        saveOne.tooltip = new TipSignal("BetterCELoadouts_SelectToSave".Translate());
+                    }
+                    Find.WindowStack.Add(new FloatMenu(new List<FloatMenuOption>
+                    {
+                        saveOne,
+                        new("BetterCELoadouts_SaveAll".Translate(), LoadoutSets.SaveAll),
+                    }));
+                }
+                else
+                {
+                    TopBar.SaveRequested = true;
+                }
             }
         }
 

@@ -2,6 +2,16 @@
 <LanguageData>
   <BetterCELoadouts_InheritsFrom>Inherits from {0}</BetterCELoadouts_InheritsFrom>
   <BetterCELoadouts_ConfirmDelete>Delete the loadout {0}? Colonists using it will switch to the default loadout, and any loadouts under it become top-level.</BetterCELoadouts_ConfirmDelete>
+  <BetterCELoadouts_LoadTip>Load loadouts...</BetterCELoadouts_LoadTip>
+  <BetterCELoadouts_SaveTip>Save loadouts...</BetterCELoadouts_SaveTip>
+  <BetterCELoadouts_NothingToSave>No loadouts to save</BetterCELoadouts_NothingToSave>
+  <BetterCELoadouts_LoadOne>Load a loadout...</BetterCELoadouts_LoadOne>
+  <BetterCELoadouts_LoadAll>Load all loadouts...</BetterCELoadouts_LoadAll>
+  <BetterCELoadouts_SaveOne>Save this loadout...</BetterCELoadouts_SaveOne>
+  <BetterCELoadouts_SaveAll>Save all loadouts...</BetterCELoadouts_SaveAll>
+  <BetterCELoadouts_SavedAll>Saved all loadouts ({0}) to {1}</BetterCELoadouts_SavedAll>
+  <BetterCELoadouts_LoadedAll>Loaded loadouts ({0}) from {1}</BetterCELoadouts_LoadedAll>
+  <BetterCELoadouts_LoadFailed>Couldn't read {0}: it isn't a saved set of loadouts.</BetterCELoadouts_LoadFailed>
   <BetterCELoadouts_SelectToCopy>Select a loadout to copy it</BetterCELoadouts_SelectToCopy>
   <BetterCELoadouts_SelectToSave>Select a loadout to save it</BetterCELoadouts_SelectToSave>
   <BetterCELoadouts_DropToClearParent>Drop here to remove its parent</BetterCELoadouts_DropToClearParent>
