@@ -28,10 +28,7 @@ namespace BetterCELoadouts
         private static readonly Texture2D NewIcon = ContentFinder<Texture2D>.Get("UI/BetterCELoadouts_New");
         private static readonly Texture2D LoadIcon = ContentFinder<Texture2D>.Get("UI/BetterCELoadouts_Load");
         private static readonly Texture2D SaveIcon = ContentFinder<Texture2D>.Get("UI/BetterCELoadouts_Save");
-        private static readonly Color GhostBackground = new(0f, 0f, 0f, .6f);
-        private static readonly Color DeleteColor = new(.85f, .25f, .25f);
-        private static readonly Color DeleteMouseoverColor = new(1f, .4f, .4f);
-        private static readonly HashSet<object> Collapsed = new();
+        private static readonly Color GhostBackground = new(0f, 0f, 0f, .6f);        private static readonly HashSet<object> Collapsed = new();
         private static Vector2 scrollPosition;
 
         // Loadout under the mouse since the button went down, and whether it has moved far enough to count as a drag.
@@ -214,7 +211,7 @@ namespace BetterCELoadouts
             // Delete buttons line up down the left edge, ahead of the tree's indentation.
             Rect deleteRect = new(row.x + Margin, row.y + (row.height - DeleteSize) / 2f, DeleteSize, DeleteSize);
             bool deletable = canManage && CeLoadouts.CanBeDeleted(entry.Loadout);
-            if (deletable && Widgets.ButtonImage(deleteRect, TexButton.CloseXSmall, DeleteColor, DeleteMouseoverColor))
+            if (deletable && Widgets.ButtonImage(deleteRect, TexButton.Delete))
             {
                 ConfirmDelete(dialog, entry.Loadout);
             }
