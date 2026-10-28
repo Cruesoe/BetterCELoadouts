@@ -68,6 +68,10 @@ namespace BetterCELoadouts
         private static void DoWindowContentsPrefix(Window __instance, ref Rect canvas, out bool __state)
         {
             __state = false;
+            if (CeLoadouts.CanSort)
+            {
+                LoadoutAmmo.RefreshIfChanged(__instance);
+            }
             LoadoutNavigator.Draw(new Rect(canvas.x, canvas.y, LoadoutNavigator.Width, canvas.height), __instance);
             float offset = LoadoutNavigator.Width + LoadoutNavigator.Gap;
             Rect content = new(canvas.x + offset, canvas.y, canvas.width - offset, canvas.height);
@@ -96,7 +100,7 @@ namespace BetterCELoadouts
                 return;
             }
             HashSet<ThingDef> defs = MapDefs.GetValue(__instance, _ => ThingDefsOnMap(map));
-            CeLoadouts.SortSourceByStock(__instance, defs);
+            CeLoadouts.SortSourceByStock(__instance, defs, LoadoutAmmo.For(CeLoadouts.Current(__instance)));
         }
 
         // The same stock check CE uses to grey out items: things on the map outside fog, minified buildings excluded.

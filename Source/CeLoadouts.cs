@@ -32,6 +32,11 @@ namespace BetterCELoadouts
         private static readonly FieldInfo? SourceField = Field(DialogType, "_source");
         private static readonly FieldInfo? SourceGenericField = Field(DialogType, "_sourceGeneric");
         private static readonly FieldInfo? GreyedOutField = Field(ItemType, "isGreyedOut");
+        private static readonly FieldInfo? ItemDefField = Field(ItemType, "thingDef");
+        private static readonly PropertyInfo? SlotsProperty = Property(LoadoutType, "Slots");
+        private static readonly PropertyInfo? SlotDefProperty = Property(AccessTools.TypeByName("CombatExtended.LoadoutSlot"), "thingDef");
+        private static readonly FieldInfo? SourceTypeField = Field(DialogType, "_sourceType");
+        private static readonly MethodInfo? FilterSourceMethod = DialogType == null ? null : AccessTools.Method(DialogType, "FilterSource");
         private static readonly PropertyInfo? LambdaProperty = Property(GenericType, "lambda");
 
         public static bool Ready => DialogType != null && LoadoutsProperty != null && AssignedProperty != null
@@ -41,7 +46,33 @@ namespace BetterCELoadouts
 
         public static bool CanManage => CanBeDeletedField != null && NewMethod != null && RemoveMethod != null;
 
-        public static bool CanSort => SourceField != null && SourceGenericField != null && GreyedOutField != null && LambdaProperty != null;
+        public static bool CanSort => SourceField != null && SourceGenericField != null && GreyedOutField != null && LambdaProperty != null && ItemDefField != null;
+
+        // Every weapon in the loadout, including the ones it inherits from its parents.
+        public static List<ThingDef> WeaponsIn(object loadout)
+        {
+            List<ThingDef> weapons = new();
+            if (SlotsProperty?.GetValue(loadout) is IEnumerable slots && SlotDefProperty != null)
+            {
+                foreach (object slot in slots)
+                {
+                    if (SlotDefProperty.GetValue(slot) is ThingDef { IsWeapon: true } weapon && !weapons.Contains(weapon))
+                    {
+                        weapons.Add(weapon);
+                    }
+                }
+            }
+            return weapons;
+        }
+
+        // Rebuilds the dialog's item list, which runs the sort again; the generic list doesn't depend on weapons.
+        public static void RefreshSource(object dialog)
+        {
+            if (SourceTypeField != null && FilterSourceMethod != null && SourceTypeField.GetValue(dialog)?.ToString() != "Generic")
+            {
+                FilterSourceMethod.Invoke(dialog, new object[] { "" });
+            }
+        }
 
         private static PropertyInfo? Property(Type? type, string name) => type == null ? null : AccessTools.Property(type, name);
 
@@ -99,13 +130,16 @@ namespace BetterCELoadouts
             return counts;
         }
 
-        // Moves items the colony has to the top of the dialog's item list, keeping CE's alphabetical order within each group.
-        public static void SortSourceByStock(object dialog, HashSet<ThingDef> mapDefs)
+        // Orders the dialog's item list: things that suit the loadout's weapons first, then the rest, with items the colony has ahead
+        // of those it doesn't within each group. CE's alphabetical order is kept inside every group.
+        public static void SortSourceByStock(object dialog, HashSet<ThingDef> mapDefs, HashSet<ThingDef> loadoutAmmo)
         {
             if (SourceField!.GetValue(dialog) is IList items && items.Count > 1)
             {
                 IList sorted = (IList)Activator.CreateInstance(items.GetType())!;
-                foreach (object item in items.Cast<object>().OrderBy(i => (bool)GreyedOutField!.GetValue(i)!))
+                foreach (object item in items.Cast<object>()
+                    .OrderBy(i => loadoutAmmo.Contains((ThingDef)ItemDefField!.GetValue(i)!) ? 0 : 1)
+                    .ThenBy(i => (bool)GreyedOutField!.GetValue(i)!))
                 {
                     sorted.Add(item);
                 }
