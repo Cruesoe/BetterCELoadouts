@@ -68,6 +68,7 @@ namespace BetterCELoadouts
         private static void DoWindowContentsPrefix(Window __instance, ref Rect canvas, out bool __state)
         {
             __state = false;
+            __instance.closeOnAccept = false;
             if (CeLoadouts.CanSort)
             {
                 LoadoutAmmo.RefreshIfChanged(__instance);
