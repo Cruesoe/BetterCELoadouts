@@ -1,6 +1,6 @@
 param([string]$OutDir = (Join-Path $PSScriptRoot '..\Textures\UI'))
 
-# Draws the loadout list's New, Load and Save icons: white on transparent, 64x64, tinted in game.
+# Draws the loadout list's New, Copy, Load and Save icons: white on transparent, 64x64, tinted in game.
 Add-Type -AssemblyName System.Drawing
 New-Item -ItemType Directory -Force $OutDir | Out-Null
 $OutDir = (Resolve-Path $OutDir).Path
@@ -34,6 +34,13 @@ New-Icon 'BetterCELoadouts_New' {
   param($g)
   $g.FillRectangle($white, 26, 8, 12, 48)
   $g.FillRectangle($white, 8, 26, 48, 12)
+}
+
+New-Icon 'BetterCELoadouts_Copy' {
+  param($g)
+  $g.FillRectangle($white, 20, 4, 38, 40)
+  Punch $g 4 18 42 44
+  $g.FillRectangle($white, 8, 22, 34, 36)
 }
 
 New-Icon 'BetterCELoadouts_Load' {

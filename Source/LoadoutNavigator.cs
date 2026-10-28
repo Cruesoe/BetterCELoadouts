@@ -26,6 +26,7 @@ namespace BetterCELoadouts
 
         private static readonly Texture2D DarkBackground = SolidColorMaterials.NewSolidColorTexture(0f, 0f, 0f, .2f);
         private static readonly Texture2D NewIcon = ContentFinder<Texture2D>.Get("UI/BetterCELoadouts_New");
+        private static readonly Texture2D CopyIcon = ContentFinder<Texture2D>.Get("UI/BetterCELoadouts_Copy");
         private static readonly Texture2D LoadIcon = ContentFinder<Texture2D>.Get("UI/BetterCELoadouts_Load");
         private static readonly Texture2D SaveIcon = ContentFinder<Texture2D>.Get("UI/BetterCELoadouts_Save");
         private static readonly Color GhostBackground = new(0f, 0f, 0f, .6f);        private static readonly HashSet<object> Collapsed = new();
@@ -62,7 +63,7 @@ namespace BetterCELoadouts
 
             bool canManage = CeLoadouts.CanManage;
             Rect headerRect = new(rect.x, rect.y, rect.width, HeaderHeight);
-            // Bottom of the column: one row of icon buttons for New, Load and Save loadout.
+            // Bottom of the column: one row of icon buttons for New, Copy, Load and Save loadout.
             Rect controlsRect = new(rect.x, rect.yMax - HeaderHeight, rect.width, HeaderHeight);
             float listBottom = canManage ? controlsRect.y - Margin : rect.yMax;
             Rect listRect = new(rect.x, headerRect.yMax + Margin * 2, rect.width, listBottom - headerRect.yMax - Margin * 2);
@@ -135,23 +136,29 @@ namespace BetterCELoadouts
             Widgets.DrawLineVertical(rect.xMax + Gap / 2f, listRect.y, listRect.height);
         }
 
-        // Load and Save set a flag that CE's own (hidden) buttons report as pressed, so its dialogs and file handling run when it next draws.
+        // Copy, Load and Save set a flag that CE's own (hidden) buttons report as pressed, so its code runs when it next draws.
         private static void DrawControls(Rect row, object dialog)
         {
-            float width = (row.width - Margin * 2) / 3f;
+            float width = (row.width - Margin * 3) / 4f;
             Rect newRect = new(row.x, row.y, width, row.height);
-            Rect loadRect = new(newRect.xMax + Margin, row.y, width, row.height);
+            Rect copyRect = new(newRect.xMax + Margin, row.y, width, row.height);
+            Rect loadRect = new(copyRect.xMax + Margin, row.y, width, row.height);
             Rect saveRect = new(loadRect.xMax + Margin, row.y, width, row.height);
 
             if (IconButton(newRect, NewIcon, "CE_NewLoadout".Translate(), true) && CeLoadouts.New() is object created)
             {
                 CeLoadouts.Select(dialog, created);
             }
+            bool hasLoadout = CeLoadouts.Current(dialog) != null;
+            TaggedString copyTip = hasLoadout ? "CE_CopyLoadout".Translate() : "BetterCELoadouts_SelectToCopy".Translate();
+            if (IconButton(copyRect, CopyIcon, copyTip, hasLoadout))
+            {
+                TopBar.CopyRequested = true;
+            }
             if (IconButton(loadRect, LoadIcon, "CE_LoadLoadout".Translate(), true))
             {
                 TopBar.LoadRequested = true;
             }
-            bool hasLoadout = CeLoadouts.Current(dialog) != null;
             TaggedString saveTip = hasLoadout ? "CE_SaveLoadout".Translate() : "BetterCELoadouts_SelectToSave".Translate();
             if (IconButton(saveRect, SaveIcon, saveTip, hasLoadout))
             {

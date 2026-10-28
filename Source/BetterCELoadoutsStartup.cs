@@ -82,6 +82,7 @@ namespace BetterCELoadouts
             {
                 Widgets.EndGroup();
             }
+            TopBar.CopyRequested = false;
             TopBar.LoadRequested = false;
             TopBar.SaveRequested = false;
             return __exception;
