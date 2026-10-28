@@ -22,18 +22,15 @@ namespace BetterCELoadouts
         private static readonly Type? FileListType = AccessTools.TypeByName("CombatExtended.FileListDialog");
         private static readonly Type? SaveDialogType = AccessTools.TypeByName("CombatExtended.SaveLoadoutDialog");
         private static readonly Type? LoadDialogType = AccessTools.TypeByName("CombatExtended.LoadLoadoutDialog");
-        private static readonly Type? LoadoutType = AccessTools.TypeByName("CombatExtended.Loadout");
 
-        private static readonly MethodInfo? ToConfig = LoadoutType == null ? null : AccessTools.Method(LoadoutType, "ToConfig");
-        private static readonly MethodInfo? FromConfig = LoadoutType == null ? null : AccessTools.Method(LoadoutType, "FromConfig");
+        private static readonly MethodInfo? ToConfig = CeLoadouts.LoadoutType == null ? null : AccessTools.Method(CeLoadouts.LoadoutType, "ToConfig");
+        private static readonly MethodInfo? FromConfig = CeLoadouts.LoadoutType == null ? null : AccessTools.Method(CeLoadouts.LoadoutType, "FromConfig");
         private static readonly MethodInfo? AddLoadout = CeLoadouts.DialogType == null ? null : AccessTools.Method(CeLoadouts.DialogType, "AddLoadoutExpose");
         private static readonly FieldInfo? ConfigLabel = ConfigType == null ? null : AccessTools.Field(ConfigType, "label");
         private static readonly FieldInfo? ConfigParentLabel = ConfigType == null ? null : AccessTools.Field(ConfigType, "parentLabel");
 
         public static bool Available => ConfigType != null && FileListType != null && SaveDialogType != null && LoadDialogType != null
             && ToConfig != null && FromConfig != null && AddLoadout != null && ConfigLabel != null && ConfigParentLabel != null;
-
-        public static bool HasLoadouts => CeLoadouts.Loadouts().Count > 0;
 
         public static void SaveAll()
         {
@@ -57,22 +54,30 @@ namespace BetterCELoadouts
 
         private static void Write(FileInfo file, Window dialog)
         {
-            XmlSerializer serializer = new(ConfigType!);
-            XmlDocument document = new();
-            XmlElement root = document.CreateElement("LoadoutSet");
-            document.AppendChild(root);
-            document.InsertBefore(document.CreateXmlDeclaration("1.0", "utf-8", null), root);
-
             List<object> loadouts = CeLoadouts.Loadouts();
-            foreach (object loadout in loadouts)
+            try
             {
-                using StringWriter writer = new();
-                serializer.Serialize(writer, ToConfig!.Invoke(loadout, null));
-                XmlDocument part = new();
-                part.LoadXml(writer.ToString());
-                root.AppendChild(document.ImportNode(part.DocumentElement!, true));
+                XmlSerializer serializer = new(ConfigType!);
+                XmlDocument document = new();
+                XmlElement root = document.CreateElement("LoadoutSet");
+                document.AppendChild(root);
+                document.InsertBefore(document.CreateXmlDeclaration("1.0", "utf-8", null), root);
+                foreach (object loadout in loadouts)
+                {
+                    using StringWriter writer = new();
+                    serializer.Serialize(writer, ToConfig!.Invoke(loadout, null));
+                    XmlDocument part = new();
+                    part.LoadXml(writer.ToString());
+                    root.AppendChild(document.ImportNode(part.DocumentElement!, true));
+                }
+                document.Save(file.FullName);
             }
-            document.Save(file.FullName);
+            catch (Exception exception)
+            {
+                Log.Error($"[Better CE Loadouts] Could not save the loadout set '{file.FullName}': {exception}");
+                Messages.Message("BetterCELoadouts_SaveFailed".Translate(Path.GetFileNameWithoutExtension(file.Name)), MessageTypeDefOf.RejectInput, false);
+                return;
+            }
             dialog.Close();
             Messages.Message("BetterCELoadouts_SavedAll".Translate(loadouts.Count, Path.GetFileNameWithoutExtension(file.Name)), MessageTypeDefOf.TaskCompletion, false);
         }
@@ -92,9 +97,14 @@ namespace BetterCELoadouts
             }
 
             List<string> missing = new();
-            AddAll(configs, missing);
+            int added = AddAll(configs, missing, file);
             dialog.Close();
-            Messages.Message("BetterCELoadouts_LoadedAll".Translate(configs.Count, Path.GetFileNameWithoutExtension(file.Name)), MessageTypeDefOf.TaskCompletion, false);
+            string name = Path.GetFileNameWithoutExtension(file.Name);
+            Messages.Message("BetterCELoadouts_LoadedAll".Translate(added, name), MessageTypeDefOf.TaskCompletion, false);
+            if (added < configs.Count)
+            {
+                Messages.Message("BetterCELoadouts_LoadSkipped".Translate(configs.Count - added, name), MessageTypeDefOf.RejectInput, false);
+            }
             if (missing.Count > 0)
             {
                 Messages.Message("CE_MissingLoadoutSlots".Translate(string.Join(", ", missing.Distinct())), null, MessageTypeDefOf.RejectInput);
@@ -120,7 +130,8 @@ namespace BetterCELoadouts
 
         // Adds each loadout from its config, parents first, one at a time so CE renames any whose name is taken. Children are pointed at the
         // copies added here: CE links a parent by name, which would pick an older loadout of the same name when the loaded one was renamed.
-        private static void AddAll(List<object> configs, List<string> missing)
+        // A loadout CE can't build is skipped and logged. Returns how many were added.
+        private static int AddAll(List<object> configs, List<string> missing, FileInfo file)
         {
             Dictionary<string, object> byLabel = new();
             foreach (object config in configs)
@@ -152,9 +163,18 @@ namespace BetterCELoadouts
             Dictionary<object, object> added = new();
             foreach (object config in ordered)
             {
-                object?[] args = { config, null };
-                object loadout = FromConfig!.Invoke(null, args)!;
-                missing.AddRange((List<string>)args[1]!);
+                object loadout;
+                try
+                {
+                    object?[] args = { config, null };
+                    loadout = FromConfig!.Invoke(null, args)!;
+                    missing.AddRange((List<string>)args[1]!);
+                }
+                catch (Exception exception)
+                {
+                    Log.Error($"[Better CE Loadouts] Skipped loadout '{ConfigLabel!.GetValue(config)}' in '{file.FullName}': {exception.InnerException ?? exception}");
+                    continue;
+                }
 
                 string parentLabel = (string?)ConfigParentLabel!.GetValue(config) ?? "";
                 if (parentLabel.Length > 0 && byLabel.TryGetValue(parentLabel, out object? parentConfig) && added.TryGetValue(parentConfig, out object? parent))
@@ -164,6 +184,7 @@ namespace BetterCELoadouts
                 AddLoadout!.Invoke(null, new[] { loadout });
                 added[config] = loadout;
             }
+            return added.Count;
         }
     }
 }

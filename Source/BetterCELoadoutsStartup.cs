@@ -1,20 +1,14 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using HarmonyLib;
-using RimWorld;
-using UnityEngine;
 using Verse;
 
 namespace BetterCELoadouts
 {
+    // Registers the patches, skipping any whose CE code wasn't found so the rest still work.
     [StaticConstructorOnStartup]
     public static class BetterCELoadoutsStartup
     {
-        private static readonly ConditionalWeakTable<object, HashSet<ThingDef>> MapDefs = new();
-
         static BetterCELoadoutsStartup()
         {
             if (!CeLoadouts.Ready)
@@ -25,14 +19,14 @@ namespace BetterCELoadouts
 
             Harmony harmony = new("cruesoe.betterceloadouts");
             Type dialog = CeLoadouts.DialogType!;
-            harmony.Patch(AccessTools.PropertyGetter(dialog, "InitialSize"), postfix: new HarmonyMethod(typeof(BetterCELoadoutsStartup), nameof(InitialSizePostfix)));
+            harmony.Patch(AccessTools.PropertyGetter(dialog, "InitialSize"), postfix: Method(typeof(Patch_Dialog_ManageLoadouts), nameof(Patch_Dialog_ManageLoadouts.InitialSizePostfix)));
             harmony.Patch(AccessTools.Method(dialog, "DoWindowContents"),
-                prefix: new HarmonyMethod(typeof(BetterCELoadoutsStartup), nameof(DoWindowContentsPrefix)),
-                finalizer: new HarmonyMethod(typeof(BetterCELoadoutsStartup), nameof(DoWindowContentsFinalizer)));
+                prefix: Method(typeof(Patch_Dialog_ManageLoadouts), nameof(Patch_Dialog_ManageLoadouts.DoWindowContentsPrefix)),
+                finalizer: Method(typeof(Patch_Dialog_ManageLoadouts), nameof(Patch_Dialog_ManageLoadouts.DoWindowContentsFinalizer)));
 
             if (CeLoadouts.CanManage)
             {
-                harmony.Patch(AccessTools.Method(dialog, "DoWindowContents"), transpiler: new HarmonyMethod(typeof(TopBar), nameof(TopBar.Transpiler)));
+                harmony.Patch(AccessTools.Method(dialog, "DoWindowContents"), transpiler: Method(typeof(TopBar), nameof(TopBar.Transpiler)));
             }
             else
             {
@@ -41,7 +35,7 @@ namespace BetterCELoadouts
 
             if (WeaponTip.Target() is MethodInfo tip)
             {
-                harmony.Patch(tip, postfix: new HarmonyMethod(typeof(WeaponTip), nameof(WeaponTip.Postfix)));
+                harmony.Patch(tip, postfix: Method(typeof(WeaponTip), nameof(WeaponTip.Postfix)));
             }
             else
             {
@@ -50,7 +44,7 @@ namespace BetterCELoadouts
 
             if (CeLoadouts.CanSort)
             {
-                harmony.Patch(AccessTools.Method(dialog, "SetSource"), postfix: new HarmonyMethod(typeof(BetterCELoadoutsStartup), nameof(SetSourcePostfix)));
+                harmony.Patch(AccessTools.Method(dialog, "SetSource"), postfix: Method(typeof(Patch_Dialog_ManageLoadouts), nameof(Patch_Dialog_ManageLoadouts.SetSourcePostfix)));
             }
             else
             {
@@ -58,58 +52,6 @@ namespace BetterCELoadouts
             }
         }
 
-        // Widens the window to fit the loadout tree.
-        private static void InitialSizePostfix(ref Vector2 __result)
-        {
-            __result.x = Mathf.Min(__result.x + LoadoutNavigator.Width + LoadoutNavigator.Gap, UI.screenWidth);
-        }
-
-        // Draws the loadout tree, then hands CE the rest of the window.
-        private static void DoWindowContentsPrefix(Window __instance, ref Rect canvas, out bool __state)
-        {
-            __state = false;
-            __instance.closeOnAccept = false;
-            if (CeLoadouts.CanSort)
-            {
-                LoadoutAmmo.RefreshIfChanged(__instance);
-            }
-            LoadoutNavigator.Draw(new Rect(canvas.x, canvas.y, LoadoutNavigator.Width, canvas.height), __instance);
-            float offset = LoadoutNavigator.Width + LoadoutNavigator.Gap;
-            Rect content = new(canvas.x + offset, canvas.y, canvas.width - offset, canvas.height);
-            Widgets.BeginGroup(content);
-            __state = true;
-            canvas = content.AtZero();
-        }
-
-        private static Exception? DoWindowContentsFinalizer(Exception? __exception, bool __state)
-        {
-            if (__state)
-            {
-                Widgets.EndGroup();
-            }
-            TopBar.CopyRequested = false;
-            TopBar.LoadRequested = false;
-            TopBar.SaveRequested = false;
-            return __exception;
-        }
-
-        // Runs after CE rebuilds its item list (on opening, switching category and filtering).
-        private static void SetSourcePostfix(object __instance)
-        {
-            if (Find.CurrentMap is not Map map)
-            {
-                return;
-            }
-            HashSet<ThingDef> defs = MapDefs.GetValue(__instance, _ => ThingDefsOnMap(map));
-            CeLoadouts.SortSourceByStock(__instance, defs, LoadoutAmmo.For(CeLoadouts.Current(__instance)));
-        }
-
-        // The same stock check CE uses to grey out items: things on the map outside fog, minified buildings excluded.
-        private static HashSet<ThingDef> ThingDefsOnMap(Map map)
-        {
-            return new HashSet<ThingDef>(map.listerThings.AllThings
-                .Where(t => !t.PositionHeld.Fogged(t.MapHeld) && !t.GetInnerIfMinified().def.Minifiable)
-                .Select(t => t.def));
-        }
+        private static HarmonyMethod Method(Type type, string name) => new(AccessTools.Method(type, name));
     }
 }

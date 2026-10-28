@@ -11,6 +11,8 @@
   <BetterCELoadouts_SaveAll>Save all loadouts...</BetterCELoadouts_SaveAll>
   <BetterCELoadouts_SavedAll>Saved all loadouts ({0}) to {1}</BetterCELoadouts_SavedAll>
   <BetterCELoadouts_LoadedAll>Loaded loadouts ({0}) from {1}</BetterCELoadouts_LoadedAll>
+  <BetterCELoadouts_SaveFailed>Couldn't save {0}. See the log for details.</BetterCELoadouts_SaveFailed>
+  <BetterCELoadouts_LoadSkipped>Couldn't load {0} of the loadouts in {1}. See the log for details.</BetterCELoadouts_LoadSkipped>
   <BetterCELoadouts_LoadFailed>Couldn't read {0}: it isn't a saved set of loadouts.</BetterCELoadouts_LoadFailed>
   <BetterCELoadouts_SelectToCopy>Select a loadout to copy it</BetterCELoadouts_SelectToCopy>
   <BetterCELoadouts_SelectToSave>Select a loadout to save it</BetterCELoadouts_SelectToSave>

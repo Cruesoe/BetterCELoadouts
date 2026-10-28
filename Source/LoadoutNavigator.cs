@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using RimWorld;
 using UnityEngine;
 using Verse;
@@ -29,25 +30,33 @@ namespace BetterCELoadouts
         private static readonly Texture2D CopyIcon = ContentFinder<Texture2D>.Get("UI/BetterCELoadouts_Copy");
         private static readonly Texture2D LoadIcon = ContentFinder<Texture2D>.Get("UI/BetterCELoadouts_Load");
         private static readonly Texture2D SaveIcon = ContentFinder<Texture2D>.Get("UI/BetterCELoadouts_Save");
-        private static readonly Color GhostBackground = new(0f, 0f, 0f, .6f);        private static readonly HashSet<object> Collapsed = new();
+        private static readonly Color GhostBackground = new(0f, 0f, 0f, .6f);
+
+        // Collapsed parents, held weakly so loadouts from earlier games are let go.
+        private static readonly ConditionalWeakTable<object, object> Collapsed = new();
         private static Vector2 scrollPosition;
 
-        // Loadout under the mouse since the button went down, and whether it has moved far enough to count as a drag.
+        // Loadout under the mouse since the button went down, and whether it has moved far enough to count as a drag; reset for each new window.
         private static object? pressed;
         private static Vector2 pressPosition;
         private static bool dragging;
+        private static System.WeakReference<object>? lastDialog;
 
         private readonly struct Row
         {
             public readonly object Loadout;
+            public readonly string Label;
             public readonly int Depth;
             public readonly bool HasChildren;
+            public readonly bool Deletable;
 
-            public Row(object loadout, int depth, bool hasChildren)
+            public Row(object loadout, string label, int depth, bool hasChildren, bool deletable)
             {
                 Loadout = loadout;
+                Label = label;
                 Depth = depth;
                 HasChildren = hasChildren;
+                Deletable = deletable;
             }
         }
 
@@ -55,13 +64,23 @@ namespace BetterCELoadouts
         {
             Text.Font = GameFont.Small;
             Event e = Event.current;
+            if (lastDialog == null || !lastDialog.TryGetTarget(out object? last) || last != dialog)
+            {
+                lastDialog = new System.WeakReference<object>(dialog);
+                pressed = null;
+                dragging = false;
+            }
             if (e.rawType == EventType.MouseDown)
             {
                 pressed = null;
                 dragging = false;
             }
 
+            // Read once per pass and shared by everything drawn below.
             bool canManage = CeLoadouts.CanManage;
+            List<object> loadouts = CeLoadouts.Loadouts();
+            object? current = CeLoadouts.Current(dialog);
+
             Rect headerRect = new(rect.x, rect.y, rect.width, HeaderHeight);
             // Bottom of the column: one row of icon buttons for New, Copy, Load and Save loadout.
             Rect controlsRect = new(rect.x, rect.yMax - HeaderHeight, rect.width, HeaderHeight);
@@ -69,13 +88,13 @@ namespace BetterCELoadouts
             Rect listRect = new(rect.x, headerRect.yMax + Margin * 2, rect.width, listBottom - headerRect.yMax - Margin * 2);
             if (canManage)
             {
-                DrawControls(controlsRect, dialog);
+                DrawControls(controlsRect, dialog, current != null, loadouts.Count > 0);
             }
             bool canReparent = CeLoadouts.CanReparent;
             bool clearingParent = dragging && pressed != null && CeLoadouts.Parent(pressed) != null;
             DrawHeader(headerRect, clearingParent);
 
-            List<Row> rows = BuildRows(CeLoadouts.Loadouts());
+            List<Row> rows = BuildRows(loadouts, canManage);
             if (rows.Count == 0)
             {
                 GUI.color = Color.grey;
@@ -85,7 +104,6 @@ namespace BetterCELoadouts
             }
 
             Dictionary<object, int> pawnCounts = CeLoadouts.PawnCounts();
-            object? current = CeLoadouts.Current(dialog);
             bool overHeader = Mouse.IsOver(headerRect);
             bool overList = Mouse.IsOver(listRect);
             Rect viewRect = new(0f, 0f, listRect.width, rows.Count * RowHeight);
@@ -137,7 +155,7 @@ namespace BetterCELoadouts
         }
 
         // Copy, Load and Save set a flag that CE's own (hidden) buttons report as pressed, so its code runs when it next draws.
-        private static void DrawControls(Rect row, object dialog)
+        private static void DrawControls(Rect row, object dialog, bool hasLoadout, bool anyLoadouts)
         {
             float width = (row.width - Margin * 3) / 4f;
             Rect newRect = new(row.x, row.y, width, row.height);
@@ -149,7 +167,6 @@ namespace BetterCELoadouts
             {
                 CeLoadouts.Select(dialog, created);
             }
-            bool hasLoadout = CeLoadouts.Current(dialog) != null;
             TaggedString copyTip = hasLoadout ? "CE_CopyLoadout".Translate() : "BetterCELoadouts_SelectToCopy".Translate();
             if (IconButton(copyRect, CopyIcon, copyTip, hasLoadout))
             {
@@ -173,7 +190,7 @@ namespace BetterCELoadouts
             }
 
             // With sets, Save is available whenever there's a loadout in the list; saving just the selected one needs a selection.
-            bool canSave = sets ? LoadoutSets.HasLoadouts : hasLoadout;
+            bool canSave = sets ? anyLoadouts : hasLoadout;
             TaggedString saveTip = !canSave ? "BetterCELoadouts_NothingToSave".Translate()
                 : sets ? "BetterCELoadouts_SaveTip".Translate() : "CE_SaveLoadout".Translate();
             if (IconButton(saveRect, SaveIcon, saveTip, canSave))
@@ -249,12 +266,11 @@ namespace BetterCELoadouts
 
             // Delete buttons line up down the left edge, ahead of the tree's indentation.
             Rect deleteRect = new(row.x + Margin, row.y + (row.height - DeleteSize) / 2f, DeleteSize, DeleteSize);
-            bool deletable = canManage && CeLoadouts.CanBeDeleted(entry.Loadout);
-            if (deletable && Widgets.ButtonImage(deleteRect, TexButton.Delete))
+            if (entry.Deletable && Widgets.ButtonImage(deleteRect, TexButton.Delete))
             {
                 ConfirmDelete(dialog, entry.Loadout);
             }
-            if (deletable && Mouse.IsOver(deleteRect))
+            if (entry.Deletable && Mouse.IsOver(deleteRect))
             {
                 TooltipHandler.TipRegion(deleteRect, "CE_DeleteLoadout".Translate());
             }
@@ -263,17 +279,10 @@ namespace BetterCELoadouts
             Rect toggleRect = new(x, row.y + (row.height - ToggleSize) / 2f, ToggleSize, ToggleSize);
             if (entry.HasChildren)
             {
-                bool collapsed = Collapsed.Contains(entry.Loadout);
+                bool collapsed = IsCollapsed(entry.Loadout);
                 if (Widgets.ButtonImage(toggleRect, collapsed ? TexButton.Reveal : TexButton.Collapse))
                 {
-                    if (collapsed)
-                    {
-                        Collapsed.Remove(entry.Loadout);
-                    }
-                    else
-                    {
-                        Collapsed.Add(entry.Loadout);
-                    }
+                    SetCollapsed(entry.Loadout, !collapsed);
                 }
             }
             x += ToggleSize + Margin;
@@ -284,7 +293,7 @@ namespace BetterCELoadouts
 
             Text.Anchor = TextAnchor.MiddleLeft;
             Text.WordWrap = false;
-            Widgets.Label(labelRect, CeLoadouts.Label(entry.Loadout).Truncate(labelRect.width));
+            Widgets.Label(labelRect, entry.Label.Truncate(labelRect.width));
             Text.WordWrap = true;
             if (pawns > 0)
             {
@@ -298,10 +307,10 @@ namespace BetterCELoadouts
             Event e = Event.current;
             if (pressed == null && Mouse.IsOver(row))
             {
-                TooltipHandler.TipRegion(row, Tooltip(entry.Loadout, pawns));
+                TooltipHandler.TipRegion(row, Tooltip(entry, pawns));
             }
             if (e.type == EventType.MouseDown && e.button == 0 && Mouse.IsOver(row)
-                && !(entry.HasChildren && Mouse.IsOver(toggleRect)) && !(deletable && Mouse.IsOver(deleteRect)))
+                && !(entry.HasChildren && Mouse.IsOver(toggleRect)) && !(entry.Deletable && Mouse.IsOver(deleteRect)))
             {
                 pressed = entry.Loadout;
                 pressPosition = e.mousePosition;
@@ -309,7 +318,7 @@ namespace BetterCELoadouts
             }
         }
 
-        // Asks first, since one click on the X deletes; CE's own delete then moves its colonists to the default loadout.
+        // Asks first, since one click on the bin deletes; CE's own delete then moves its colonists to the default loadout.
         private static void ConfirmDelete(object dialog, object loadout)
         {
             Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation("BetterCELoadouts_ConfirmDelete".Translate(CeLoadouts.Label(loadout)), () =>
@@ -335,7 +344,7 @@ namespace BetterCELoadouts
             if (target != null && CeLoadouts.Parent(loadout) != target)
             {
                 CeLoadouts.SetParent(loadout, target);
-                Collapsed.Remove(target);
+                SetCollapsed(target, false);
                 SoundDefOf.Tick_High.PlayOneShotOnCamera();
             }
             else if (target == null && toTopLevel && CeLoadouts.Parent(loadout) != null)
@@ -357,10 +366,10 @@ namespace BetterCELoadouts
             Text.Anchor = TextAnchor.UpperLeft;
         }
 
-        private static string Tooltip(object loadout, int pawns)
+        private static string Tooltip(Row entry, int pawns)
         {
-            List<string> lines = new() { CeLoadouts.Label(loadout) };
-            if (CeLoadouts.Parent(loadout) is object parent)
+            List<string> lines = new() { entry.Label };
+            if (CeLoadouts.Parent(entry.Loadout) is object parent)
             {
                 lines.Add("BetterCELoadouts_InheritsFrom".Translate(CeLoadouts.Label(parent)));
             }
@@ -368,8 +377,19 @@ namespace BetterCELoadouts
             return string.Join("\n", lines);
         }
 
+        private static bool IsCollapsed(object loadout) => Collapsed.TryGetValue(loadout, out _);
+
+        private static void SetCollapsed(object loadout, bool collapsed)
+        {
+            Collapsed.Remove(loadout);
+            if (collapsed)
+            {
+                Collapsed.Add(loadout, loadout);
+            }
+        }
+
         // Depth-first list of loadouts under their parents, skipping the children of collapsed parents.
-        private static List<Row> BuildRows(List<object> loadouts)
+        private static List<Row> BuildRows(List<object> loadouts, bool canManage)
         {
             HashSet<object> known = new(loadouts);
             Dictionary<object, List<object>> children = new();
@@ -394,20 +414,20 @@ namespace BetterCELoadouts
             List<Row> rows = new();
             foreach (object root in roots)
             {
-                AddRows(root, 0, children, rows);
+                AddRows(root, 0, children, rows, canManage);
             }
             return rows;
         }
 
-        private static void AddRows(object loadout, int depth, Dictionary<object, List<object>> children, List<Row> rows)
+        private static void AddRows(object loadout, int depth, Dictionary<object, List<object>> children, List<Row> rows, bool canManage)
         {
             children.TryGetValue(loadout, out List<object>? kids);
-            rows.Add(new Row(loadout, depth, kids != null));
-            if (kids != null && !Collapsed.Contains(loadout))
+            rows.Add(new Row(loadout, CeLoadouts.Label(loadout), depth, kids != null, canManage && CeLoadouts.CanBeDeleted(loadout)));
+            if (kids != null && !IsCollapsed(loadout))
             {
                 foreach (object child in kids)
                 {
-                    AddRows(child, depth + 1, children, rows);
+                    AddRows(child, depth + 1, children, rows, canManage);
                 }
             }
         }

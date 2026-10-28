@@ -12,7 +12,7 @@ namespace BetterCELoadouts
     internal static class CeLoadouts
     {
         public static readonly Type? DialogType = AccessTools.TypeByName("CombatExtended.Dialog_ManageLoadouts");
-        private static readonly Type? LoadoutType = AccessTools.TypeByName("CombatExtended.Loadout");
+        public static readonly Type? LoadoutType = AccessTools.TypeByName("CombatExtended.Loadout");
         private static readonly Type? ManagerType = AccessTools.TypeByName("CombatExtended.LoadoutManager");
         private static readonly Type? GenericType = AccessTools.TypeByName("CombatExtended.LoadoutGenericDef");
         private static readonly Type? ItemType = DialogType == null ? null : AccessTools.Inner(DialogType, "SelectableItem");
@@ -115,16 +115,19 @@ namespace BetterCELoadouts
 
         public static void Select(object dialog, object? loadout) => CurrentProperty!.SetValue(dialog, loadout);
 
-        // Number of pawns assigned to each loadout.
+        // Number of living pawns assigned to each loadout; CE only drops dead and destroyed pawns from its list when the game is saved.
         public static Dictionary<object, int> PawnCounts()
         {
             Dictionary<object, int> counts = new();
             if (AssignedProperty!.GetValue(null) is IDictionary assigned)
             {
-                foreach (object loadout in assigned.Values)
+                foreach (DictionaryEntry entry in assigned)
                 {
-                    counts.TryGetValue(loadout, out int count);
-                    counts[loadout] = count + 1;
+                    if (entry.Key is Pawn { Dead: false, Destroyed: false } && entry.Value is object loadout)
+                    {
+                        counts.TryGetValue(loadout, out int count);
+                        counts[loadout] = count + 1;
+                    }
                 }
             }
             return counts;

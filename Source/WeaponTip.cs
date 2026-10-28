@@ -1,4 +1,5 @@
-using System.Collections;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using HarmonyLib;
@@ -16,9 +17,12 @@ namespace BetterCELoadouts
         private static readonly StatDef? BurstShotCount = DefDatabase<StatDef>.GetNamedSilentFail("BurstShotCount");
         private static readonly StatDef? TicksBetweenBurstShots = DefDatabase<StatDef>.GetNamedSilentFail("TicksBetweenBurstShots");
 
+        // CE builds every visible row's tooltip on every pass, so the lines are worked out once per item.
+        private static readonly Dictionary<ThingDef, string> Lines = new();
+
         public static MethodInfo? Target()
         {
-            System.Type? utility = AccessTools.TypeByName("CombatExtended.Utility_Loadouts");
+            Type? utility = AccessTools.TypeByName("CombatExtended.Utility_Loadouts");
             return utility == null ? null : AccessTools.Method(utility, "GetWeightAndBulkTip", new[] { typeof(ThingDef), typeof(int) });
         }
 
@@ -28,13 +32,18 @@ namespace BetterCELoadouts
             {
                 return;
             }
-            string? dps = def.IsRangedWeapon ? RangedDps(def) : MeleeDps(def);
-            if (dps != null)
+            if (!Lines.TryGetValue(def, out string? lines))
             {
-                __result += "\n" + dps;
+                Lines[def] = lines = BuildLines(def);
             }
+            __result += lines;
+        }
+
+        private static string BuildLines(ThingDef def)
+        {
+            string? dps = def.IsRangedWeapon ? RangedDps(def) : MeleeDps(def);
             bool oneHanded = def.weaponTags?.Contains(OneHandedTag) ?? false;
-            __result += "\n" + (oneHanded ? "BetterCELoadouts_OneHanded" : "BetterCELoadouts_TwoHanded").Translate();
+            return (dps == null ? "" : "\n" + dps) + "\n" + (oneHanded ? "BetterCELoadouts_OneHanded" : "BetterCELoadouts_TwoHanded").Translate();
         }
 
         // CE's own average melee DPS stat, for the default material when the weapon is made from stuff.
@@ -61,14 +70,14 @@ namespace BetterCELoadouts
             {
                 return null;
             }
-            ThingDef? projectile = FirstAmmoProjectile(def, out string? ammoLabel) ?? verb.defaultProjectile;
+            (ThingDef? ammo, ThingDef? firstProjectile) = CeAmmo.Links(def, false).FirstOrDefault();
+            ThingDef? projectile = firstProjectile ?? verb.defaultProjectile;
             if (projectile?.projectile == null)
             {
                 return null;
             }
 
-            int pellets = AccessTools.Field(projectile.projectile.GetType(), "pelletCount")?.GetValue(projectile.projectile) is int p && p > 0 ? p : 1;
-            float damage = projectile.projectile.GetDamageAmount(def, null) * pellets;
+            float damage = projectile.projectile.GetDamageAmount(def, null) * CeAmmo.Pellets(projectile.projectile);
             float burst = BurstShotCount != null ? def.GetStatValueAbstract(BurstShotCount) : verb.burstShotCount;
             float ticksBetween = TicksBetweenBurstShots != null ? def.GetStatValueAbstract(TicksBetweenBurstShots) : verb.ticksBetweenBurstShots;
             float seconds = verb.warmupTime + (burst - 1f) * ticksBetween / GenTicks.TicksPerRealSecond + def.GetStatValueAbstract(StatDefOf.RangedWeapon_Cooldown);
@@ -78,24 +87,9 @@ namespace BetterCELoadouts
             }
 
             string value = (damage * burst / seconds).ToStringByStyle(ToStringStyle.FloatTwo);
-            return ammoLabel == null
+            return firstProjectile == null || ammo == null
                 ? "BetterCELoadouts_RangedDps".Translate(value)
-                : "BetterCELoadouts_RangedDpsAmmo".Translate(value, ammoLabel);
-        }
-
-        // The projectile of the first ammo in the weapon's CE ammo set, if it has one.
-        private static ThingDef? FirstAmmoProjectile(ThingDef def, out string? ammoLabel)
-        {
-            ammoLabel = null;
-            CompProperties? ammoUser = def.comps?.FirstOrDefault(c => c.GetType().Name == "CompProperties_AmmoUser");
-            object? ammoSet = ammoUser == null ? null : AccessTools.Field(ammoUser.GetType(), "ammoSet")?.GetValue(ammoUser);
-            if (ammoSet == null || AccessTools.Field(ammoSet.GetType(), "ammoTypes")?.GetValue(ammoSet) is not IList ammoTypes || ammoTypes.Count == 0)
-            {
-                return null;
-            }
-            object link = ammoTypes[0]!;
-            ammoLabel = (AccessTools.Field(link.GetType(), "ammo")?.GetValue(link) as ThingDef)?.label;
-            return AccessTools.Field(link.GetType(), "projectile")?.GetValue(link) as ThingDef;
+                : "BetterCELoadouts_RangedDpsAmmo".Translate(value, ammo.label);
         }
     }
 }
