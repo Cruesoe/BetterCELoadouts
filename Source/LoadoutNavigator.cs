@@ -22,8 +22,12 @@ namespace BetterCELoadouts
         private const float ToggleSize = 18f;
         private const float DragThreshold = 6f;
         private const float DeleteSize = 16f;
+        private const float IconSize = 20f;
 
         private static readonly Texture2D DarkBackground = SolidColorMaterials.NewSolidColorTexture(0f, 0f, 0f, .2f);
+        private static readonly Texture2D NewIcon = ContentFinder<Texture2D>.Get("UI/BetterCELoadouts_New");
+        private static readonly Texture2D LoadIcon = ContentFinder<Texture2D>.Get("UI/BetterCELoadouts_Load");
+        private static readonly Texture2D SaveIcon = ContentFinder<Texture2D>.Get("UI/BetterCELoadouts_Save");
         private static readonly Color GhostBackground = new(0f, 0f, 0f, .6f);
         private static readonly Color DeleteColor = new(.85f, .25f, .25f);
         private static readonly Color DeleteMouseoverColor = new(1f, .4f, .4f);
@@ -61,30 +65,13 @@ namespace BetterCELoadouts
 
             bool canManage = CeLoadouts.CanManage;
             Rect headerRect = new(rect.x, rect.y, rect.width, HeaderHeight);
-            // Bottom of the column: New loadout, with Load and Save loadout side by side beneath it.
-            Rect fileRect = new(rect.x, rect.yMax - HeaderHeight, rect.width, HeaderHeight);
-            Rect newRect = new(rect.x, fileRect.y - Margin - HeaderHeight, rect.width, HeaderHeight);
-            float listBottom = canManage ? newRect.y - Margin : rect.yMax;
+            // Bottom of the column: one row of icon buttons for New, Load and Save loadout.
+            Rect controlsRect = new(rect.x, rect.yMax - HeaderHeight, rect.width, HeaderHeight);
+            float listBottom = canManage ? controlsRect.y - Margin : rect.yMax;
             Rect listRect = new(rect.x, headerRect.yMax + Margin * 2, rect.width, listBottom - headerRect.yMax - Margin * 2);
             if (canManage)
             {
-                if (Widgets.ButtonText(newRect, "CE_NewLoadout".Translate()) && CeLoadouts.New() is object created)
-                {
-                    CeLoadouts.Select(dialog, created);
-                }
-
-                // Save needs a selected loadout; Load takes the whole row without one. CE's own dialogs run when it next draws.
-                bool hasLoadout = CeLoadouts.Current(dialog) != null;
-                float half = (fileRect.width - Margin) / 2f;
-                Rect loadRect = hasLoadout ? new Rect(fileRect.x, fileRect.y, half, fileRect.height) : fileRect;
-                if (Widgets.ButtonText(loadRect, "CE_LoadLoadout".Translate()))
-                {
-                    TopBar.LoadRequested = true;
-                }
-                if (hasLoadout && Widgets.ButtonText(new Rect(loadRect.xMax + Margin, fileRect.y, half, fileRect.height), "CE_SaveLoadout".Translate()))
-                {
-                    TopBar.SaveRequested = true;
-                }
+                DrawControls(controlsRect, dialog);
             }
             bool canReparent = CeLoadouts.CanReparent;
             bool clearingParent = dragging && pressed != null && CeLoadouts.Parent(pressed) != null;
@@ -149,6 +136,42 @@ namespace BetterCELoadouts
                 DrawGhost(pressed);
             }
             Widgets.DrawLineVertical(rect.xMax + Gap / 2f, listRect.y, listRect.height);
+        }
+
+        // Load and Save set a flag that CE's own (hidden) buttons report as pressed, so its dialogs and file handling run when it next draws.
+        private static void DrawControls(Rect row, object dialog)
+        {
+            float width = (row.width - Margin * 2) / 3f;
+            Rect newRect = new(row.x, row.y, width, row.height);
+            Rect loadRect = new(newRect.xMax + Margin, row.y, width, row.height);
+            Rect saveRect = new(loadRect.xMax + Margin, row.y, width, row.height);
+
+            if (IconButton(newRect, NewIcon, "CE_NewLoadout".Translate(), true) && CeLoadouts.New() is object created)
+            {
+                CeLoadouts.Select(dialog, created);
+            }
+            if (IconButton(loadRect, LoadIcon, "CE_LoadLoadout".Translate(), true))
+            {
+                TopBar.LoadRequested = true;
+            }
+            bool hasLoadout = CeLoadouts.Current(dialog) != null;
+            TaggedString saveTip = hasLoadout ? "CE_SaveLoadout".Translate() : "BetterCELoadouts_SelectToSave".Translate();
+            if (IconButton(saveRect, SaveIcon, saveTip, hasLoadout))
+            {
+                TopBar.SaveRequested = true;
+            }
+        }
+
+        // CE's button background with an icon on it, greyed out and inert when inactive.
+        private static bool IconButton(Rect rect, Texture2D icon, TaggedString tooltip, bool active)
+        {
+            bool clicked = Widgets.ButtonText(rect, "", true, true, active);
+            Rect iconRect = new(rect.center.x - IconSize / 2f, rect.center.y - IconSize / 2f, IconSize, IconSize);
+            GUI.color = active ? Color.white : Color.grey;
+            GUI.DrawTexture(iconRect, icon);
+            GUI.color = Color.white;
+            TooltipHandler.TipRegion(rect, tooltip);
+            return clicked;
         }
 
         // Shows where to drop to make a loadout top-level while one with a parent is being dragged.

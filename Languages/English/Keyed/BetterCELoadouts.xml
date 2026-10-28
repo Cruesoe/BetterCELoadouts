@@ -2,6 +2,7 @@
 <LanguageData>
   <BetterCELoadouts_InheritsFrom>Inherits from {0}</BetterCELoadouts_InheritsFrom>
   <BetterCELoadouts_ConfirmDelete>Delete the loadout {0}? Colonists using it will switch to the default loadout, and any loadouts under it become top-level.</BetterCELoadouts_ConfirmDelete>
+  <BetterCELoadouts_SelectToSave>Select a loadout to save it</BetterCELoadouts_SelectToSave>
   <BetterCELoadouts_DropToClearParent>Drop here to remove its parent</BetterCELoadouts_DropToClearParent>
   <BetterCELoadouts_AssignedPawns>Colonists using it: {0}</BetterCELoadouts_AssignedPawns>
   <BetterCELoadouts_MeleeDpsStuff>Damage per second: {0} (made of {1})</BetterCELoadouts_MeleeDpsStuff>
