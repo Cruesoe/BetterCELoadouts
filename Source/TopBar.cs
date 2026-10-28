@@ -6,23 +6,27 @@ using Verse;
 
 namespace BetterCELoadouts
 {
-    // Drops CE's Select, New and Delete buttons from the top bar (the loadout list does those) and closes up the rest.
+    // Takes CE's Select, New, Delete, Load and Save buttons out of the top bar (the loadout list has them now) and closes up the rest.
+    // Load and Save keep running CE's own code: a click in the list sets a flag that CE's hidden button then reports as pressed.
     internal static class TopBar
     {
         // CE's top bar: seven buttons 6px apart, in the order Select, New, Copy, Delete, Load, Save, Parent.
         private const float Margin = 6f;
         private const float BarHeight = 30f;
+        private const int CopySlot = 2;
         private const int LoadSlot = 4;
+        private const int SaveSlot = 5;
+        private const int ParentSlot = 6;
 
-        // Slots still drawn: Copy, Load, Save and Parent with a loadout selected; CE shows only Load without one.
-        private static readonly List<int> WithLoadout = new() { 2, LoadSlot, 5, 6 };
-        private static readonly List<int> WithoutLoadout = new() { LoadSlot };
+        // Slots still drawn: Copy and Parent, which CE only shows with a loadout selected.
+        private static readonly List<int> Visible = new() { CopySlot, ParentSlot };
 
         private static readonly MethodInfo ButtonText = AccessTools.Method(typeof(Widgets), nameof(Widgets.ButtonText),
             new[] { typeof(Rect), typeof(string), typeof(bool), typeof(bool), typeof(bool), typeof(TextAnchor?) });
 
-        // Set before CE draws each frame.
-        public static bool HasLoadout;
+        // Set by the loadout list during a frame; cleared when CE finishes drawing it.
+        public static bool LoadRequested;
+        public static bool SaveRequested;
 
         public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
         {
@@ -42,7 +46,16 @@ namespace BetterCELoadouts
             if (rect.y == 0f && rect.height == BarHeight)
             {
                 float step = rect.width + Margin;
-                int position = (HasLoadout ? WithLoadout : WithoutLoadout).IndexOf(Mathf.RoundToInt(rect.x / step));
+                int slot = Mathf.RoundToInt(rect.x / step);
+                if (slot == LoadSlot)
+                {
+                    return LoadRequested;
+                }
+                if (slot == SaveSlot)
+                {
+                    return SaveRequested;
+                }
+                int position = Visible.IndexOf(slot);
                 if (position < 0)
                 {
                     return false;

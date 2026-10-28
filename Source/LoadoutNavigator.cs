@@ -61,12 +61,30 @@ namespace BetterCELoadouts
 
             bool canManage = CeLoadouts.CanManage;
             Rect headerRect = new(rect.x, rect.y, rect.width, HeaderHeight);
-            Rect newRect = new(rect.x, rect.yMax - HeaderHeight, rect.width, HeaderHeight);
+            // Bottom of the column: New loadout, with Load and Save loadout side by side beneath it.
+            Rect fileRect = new(rect.x, rect.yMax - HeaderHeight, rect.width, HeaderHeight);
+            Rect newRect = new(rect.x, fileRect.y - Margin - HeaderHeight, rect.width, HeaderHeight);
             float listBottom = canManage ? newRect.y - Margin : rect.yMax;
             Rect listRect = new(rect.x, headerRect.yMax + Margin * 2, rect.width, listBottom - headerRect.yMax - Margin * 2);
-            if (canManage && Widgets.ButtonText(newRect, "CE_NewLoadout".Translate()) && CeLoadouts.New() is object created)
+            if (canManage)
             {
-                CeLoadouts.Select(dialog, created);
+                if (Widgets.ButtonText(newRect, "CE_NewLoadout".Translate()) && CeLoadouts.New() is object created)
+                {
+                    CeLoadouts.Select(dialog, created);
+                }
+
+                // Save needs a selected loadout; Load takes the whole row without one. CE's own dialogs run when it next draws.
+                bool hasLoadout = CeLoadouts.Current(dialog) != null;
+                float half = (fileRect.width - Margin) / 2f;
+                Rect loadRect = hasLoadout ? new Rect(fileRect.x, fileRect.y, half, fileRect.height) : fileRect;
+                if (Widgets.ButtonText(loadRect, "CE_LoadLoadout".Translate()))
+                {
+                    TopBar.LoadRequested = true;
+                }
+                if (hasLoadout && Widgets.ButtonText(new Rect(loadRect.xMax + Margin, fileRect.y, half, fileRect.height), "CE_SaveLoadout".Translate()))
+                {
+                    TopBar.SaveRequested = true;
+                }
             }
             bool canReparent = CeLoadouts.CanReparent;
             bool clearingParent = dragging && pressed != null && CeLoadouts.Parent(pressed) != null;
