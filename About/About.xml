@@ -8,11 +8,11 @@
     <li>1.6</li>
     <li>1.7</li>
   </supportedVersions>
-  <description>Easier navigation for Combat Extended's Manage loadouts window, keeping its look and every button where it was.
+  <description>Easier navigation for Combat Extended's Manage loadouts window, keeping its look.
 
-A list of all your loadouts runs down the left of the window. Child loadouts sit indented under their parent loadout, so it's clear what inherits from what, and each parent can be collapsed. Click a loadout to edit it. The number beside a loadout is how many colonists use it.
+A list of all your loadouts runs down the left of the window. Child loadouts sit indented under their parent loadout, so it's clear what inherits from what, and each parent can be collapsed. Click a loadout to edit it, use the bin icon beside it to delete it, or add, copy, load or save a loadout with the row of icon buttons at the bottom of the list (the list replaces all of Combat Extended's loadout buttons in the top bar). Save and Load each offer a choice of one loadout or all of them: save every loadout in the list to one file, and load a whole file of loadouts back in, with each child loadout reconnected to its parent. Drag a loadout onto another to make it a child of that loadout, or onto the list's header or empty space to make it top-level again. The number beside a loadout is how many colonists use it.
 
-When adding items, the ones your colony has are listed first, then everything else (still greyed out, as in Combat Extended).
+When adding items, ammo that fits the weapons in the loadout comes first, then the items your colony has, then everything else (still greyed out, as in Combat Extended). A weapon's tooltip also shows its damage per second and whether it's one-handed (usable with a shield) or two-handed.
 
 Requires Combat Extended. Safe to add or remove mid-save: your loadouts belong to Combat Extended and are unchanged.</description>
   <modDependencies>

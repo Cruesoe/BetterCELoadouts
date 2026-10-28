@@ -1,0 +1,22 @@
+[b]Makes Combat Extended's loadout screen easier to use: every loadout in one list, with sub-loadouts tucked under their parents.[/b]
+
+Combat Extended's loadout system is powerful, but managing it means picking from menus and hunting through an alphabetical item list. This adds a loadout list down the left of the same window, keeping Combat Extended's look and layout.
+
+[h2]Features[/h2]
+[list]
+[*]All your loadouts are listed down the left of the Manage loadouts window. Click one to edit it.
+[*]Sub-loadouts sit indented under the loadout they inherit from, to any depth, and each parent can be collapsed. The number beside a loadout is how many colonists use it.
+[*]Drag a loadout onto another to make it a sub-loadout. Drop it on the list header or empty space to make it top-level again. A loadout can't be dropped onto itself or its own sub-loadouts.
+[*]A row of icon buttons at the bottom of the list creates, copies, loads and saves loadouts. These replace the buttons that used to run along the top of the window.
+[*]A bin icon beside each loadout deletes it, after asking you to confirm. Its colonists switch to the default loadout, and any sub-loadouts become top-level.
+[*]The Save and Load buttons each offer a choice: one loadout, or all of them. Save every loadout in the list to a single file, and load a whole file of loadouts back in, with each sub-loadout reconnected to its parent. Loading never overwrites: a loadout whose name is taken is renamed, as Combat Extended already does.
+[*]When adding items, the ones your colony has are listed first, then everything else, still greyed out. Ammo that fits the weapons in the loadout, including ones it inherits, goes above both. Each group stays in alphabetical order.
+[*]A weapon's tooltip shows its damage per second and whether it is one-handed or two-handed. Ranged weapons assume every shot hits, using the first ammo type Combat Extended lists for them.
+[/list]
+
+[h2]Compatibility[/h2]
+Needs Combat Extended. Safe to add to an existing save, and safe to remove: your loadouts belong to Combat Extended and are unchanged, and the original window comes back.
+Another mod that replaces Combat Extended's Manage loadouts window would clash with this one.
+
+[h2]Credits[/h2]
+Thanks to the [b]Combat Extended team[/b] for the loadout system this builds on.
