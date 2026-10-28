@@ -6,7 +6,7 @@ using Verse;
 
 namespace BetterCELoadouts
 {
-    // Takes CE's Select, New, Delete, Load and Save buttons out of the top bar (the loadout list has them now) and closes up the rest.
+    // Takes CE's Select, New, Delete, Load, Save and Parent buttons out of the top bar (the loadout list does their jobs now) and closes up the rest.
     // Load and Save keep running CE's own code: a click in the list sets a flag that CE's hidden button then reports as pressed.
     internal static class TopBar
     {
@@ -16,10 +16,9 @@ namespace BetterCELoadouts
         private const int CopySlot = 2;
         private const int LoadSlot = 4;
         private const int SaveSlot = 5;
-        private const int ParentSlot = 6;
 
-        // Slots still drawn: Copy and Parent, which CE only shows with a loadout selected.
-        private static readonly List<int> Visible = new() { CopySlot, ParentSlot };
+        // Slots still drawn: only Copy, which CE shows with a loadout selected. Parent (slot 6) is set by dragging in the list.
+        private static readonly List<int> Visible = new() { CopySlot };
 
         private static readonly MethodInfo ButtonText = AccessTools.Method(typeof(Widgets), nameof(Widgets.ButtonText),
             new[] { typeof(Rect), typeof(string), typeof(bool), typeof(bool), typeof(bool), typeof(TextAnchor?) });
