@@ -1,3 +1,3 @@
 # Better CE Loadouts
 
-Easier navigation for Combat Extended's Manage loadouts window. All your loadouts are listed down the left, with child loadouts indented under their parents and a count of the colonists using each. When adding items, the ones your colony has are listed first.
+Easier navigation for Combat Extended's Manage loadouts window. All your loadouts are listed down the left, with child loadouts indented under their parents (drag one onto another to make it a child) and a count of the colonists using each. Icon buttons under the list create, copy, load and save loadouts, a bin beside each one deletes it, and every loadout can be saved to or loaded from one file. When adding items, ammo for the loadout's weapons comes first, then the items your colony has, and weapon tooltips show damage per second and whether the weapon is one-handed or two-handed.
