@@ -30,7 +30,7 @@ namespace BetterCELoadouts
             }
             else
             {
-                Log.Warning("[Better CE Loadouts] Combat Extended's new and delete loadout code has changed; its own buttons are kept.");
+                Log.Warning("[Better CE Loadouts] Combat Extended's code for creating, deleting or reparenting loadouts has changed; its own buttons are kept.");
             }
 
             if (WeaponTip.Target() is MethodInfo tip)

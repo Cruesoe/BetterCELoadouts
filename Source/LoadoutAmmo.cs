@@ -32,14 +32,7 @@ namespace BetterCELoadouts
         public static void RefreshIfChanged(object dialog)
         {
             object? loadout = CeLoadouts.Current(dialog);
-            int signature = loadout == null ? 0 : RuntimeHelpers.GetHashCode(loadout);
-            if (loadout != null)
-            {
-                foreach (ThingDef weapon in CeLoadouts.WeaponsIn(loadout))
-                {
-                    signature = signature * 31 + weapon.shortHash;
-                }
-            }
+            int signature = loadout == null ? 0 : CeLoadouts.WeaponSignature(loadout);
 
             StrongBox<int> seen = LastSeen.GetValue(dialog, _ => new StrongBox<int>(signature));
             if (seen.Value != signature)

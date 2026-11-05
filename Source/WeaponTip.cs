@@ -14,9 +14,6 @@ namespace BetterCELoadouts
         // CE's tag for weapons usable with a shield; every other weapon is two-handed.
         private const string OneHandedTag = "CE_OneHandedWeapon";
 
-        private static readonly StatDef? BurstShotCount = DefDatabase<StatDef>.GetNamedSilentFail("BurstShotCount");
-        private static readonly StatDef? TicksBetweenBurstShots = DefDatabase<StatDef>.GetNamedSilentFail("TicksBetweenBurstShots");
-
         // CE builds every visible row's tooltip on every pass, so the lines are worked out once per item.
         private static readonly Dictionary<ThingDef, string> Lines = new();
 
@@ -62,7 +59,7 @@ namespace BetterCELoadouts
                 : "BetterCELoadouts_MeleeDpsStuff".Translate(value, stuff.label);
         }
 
-        // Damage of one burst divided by the time it takes to aim, fire and cool down, with the first ammo CE lists and every shot hitting.
+        // Damage of one burst divided by the time it takes to aim, fire and cool down, with the first ammo CE lists, every shot hitting and no reloads.
         private static string? RangedDps(ThingDef def)
         {
             VerbProperties? verb = def.Verbs?.FirstOrDefault(v => v.isPrimary) ?? def.Verbs?.FirstOrDefault();
@@ -77,9 +74,12 @@ namespace BetterCELoadouts
                 return null;
             }
 
+            // Looked up per weapon, since a language change reloads every Def.
+            StatDef? burstShotCount = DefDatabase<StatDef>.GetNamedSilentFail("BurstShotCount");
+            StatDef? ticksBetweenBurstShots = DefDatabase<StatDef>.GetNamedSilentFail("TicksBetweenBurstShots");
             float damage = projectile.projectile.GetDamageAmount(def, null) * CeAmmo.Pellets(projectile.projectile);
-            float burst = BurstShotCount != null ? def.GetStatValueAbstract(BurstShotCount) : verb.burstShotCount;
-            float ticksBetween = TicksBetweenBurstShots != null ? def.GetStatValueAbstract(TicksBetweenBurstShots) : verb.ticksBetweenBurstShots;
+            float burst = burstShotCount != null ? def.GetStatValueAbstract(burstShotCount) : verb.burstShotCount;
+            float ticksBetween = ticksBetweenBurstShots != null ? def.GetStatValueAbstract(ticksBetweenBurstShots) : verb.ticksBetweenBurstShots;
             float seconds = verb.warmupTime + (burst - 1f) * ticksBetween / GenTicks.TicksPerRealSecond + def.GetStatValueAbstract(StatDefOf.RangedWeapon_Cooldown);
             if (damage <= 0f || burst < 1f || seconds <= 0f)
             {

@@ -3,7 +3,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using HarmonyLib;
+using RimWorld;
 using Verse;
 
 namespace BetterCELoadouts
@@ -21,6 +23,7 @@ namespace BetterCELoadouts
         private static readonly PropertyInfo? AssignedProperty = Property(ManagerType, "AssignedLoadouts");
         private static readonly FieldInfo? DefaultField = Field(LoadoutType, "defaultLoadout");
         private static readonly PropertyInfo? LabelCapProperty = Property(LoadoutType, "LabelCap");
+        private static readonly FieldInfo? LabelField = Field(LoadoutType, "label");
         private static readonly PropertyInfo? ParentProperty = Property(LoadoutType, "ParentLoadout");
         private static readonly PropertyInfo? ParentIdProperty = Property(LoadoutType, "parentID");
         private static readonly PropertyInfo? UniqueIdProperty = Property(LoadoutType, "UniqueID");
@@ -34,17 +37,21 @@ namespace BetterCELoadouts
         private static readonly FieldInfo? GreyedOutField = Field(ItemType, "isGreyedOut");
         private static readonly FieldInfo? ItemDefField = Field(ItemType, "thingDef");
         private static readonly PropertyInfo? SlotsProperty = Property(LoadoutType, "Slots");
+        private static readonly PropertyInfo? OwnSlotsProperty = Property(LoadoutType, "OwnSlots");
+
+        // Deepest parent chain followed; CE breaks parent cycles itself, so this only guards against a changed CE.
+        private const int MaxDepth = 64;
         private static readonly PropertyInfo? SlotDefProperty = Property(AccessTools.TypeByName("CombatExtended.LoadoutSlot"), "thingDef");
         private static readonly FieldInfo? SourceTypeField = Field(DialogType, "_sourceType");
         private static readonly MethodInfo? FilterSourceMethod = DialogType == null ? null : AccessTools.Method(DialogType, "FilterSource");
         private static readonly PropertyInfo? LambdaProperty = Property(GenericType, "lambda");
 
         public static bool Ready => DialogType != null && LoadoutsProperty != null && AssignedProperty != null
-            && DefaultField != null && LabelCapProperty != null && ParentProperty != null && CurrentProperty != null;
+            && DefaultField != null && LabelCapProperty != null && LabelField != null && ParentProperty != null && CurrentProperty != null;
 
         public static bool CanReparent => ParentIdProperty?.CanWrite == true && UniqueIdProperty != null && AncestorsProperty != null;
 
-        public static bool CanManage => CanBeDeletedField != null && NewMethod != null && RemoveMethod != null;
+        public static bool CanManage => CanReparent && CanBeDeletedField != null && NewMethod != null && RemoveMethod != null;
 
         public static bool CanSort => SourceField != null && SourceGenericField != null && GreyedOutField != null && LambdaProperty != null && ItemDefField != null;
 
@@ -63,6 +70,32 @@ namespace BetterCELoadouts
                 }
             }
             return weapons;
+        }
+
+        // A hash of the weapons in the loadout and its parents, read from each one's own slots without building CE's combined list.
+        public static int WeaponSignature(object loadout)
+        {
+            int signature = RuntimeHelpers.GetHashCode(loadout);
+            if (OwnSlotsProperty == null || SlotDefProperty == null)
+            {
+                return signature;
+            }
+            object? level = loadout;
+            for (int depth = 0; level != null && depth < MaxDepth; depth++)
+            {
+                if (OwnSlotsProperty.GetValue(level) is IList slots)
+                {
+                    for (int i = 0; i < slots.Count; i++)
+                    {
+                        if (SlotDefProperty.GetValue(slots[i]) is ThingDef { IsWeapon: true } weapon)
+                        {
+                            signature = signature * 31 + weapon.shortHash;
+                        }
+                    }
+                }
+                level = Parent(level);
+            }
+            return signature;
         }
 
         // Rebuilds the dialog's item list, which runs the sort again; the generic list doesn't depend on weapons.
@@ -88,7 +121,13 @@ namespace BetterCELoadouts
             return loadouts.Cast<object>().Where(l => !(bool)DefaultField!.GetValue(l)!).ToList();
         }
 
+        // Number of loadouts in CE's list, its default included.
+        public static int Count() => LoadoutsProperty!.GetValue(null) is IList loadouts ? loadouts.Count : 0;
+
         public static string Label(object loadout) => LabelCapProperty!.GetValue(loadout) as string ?? "";
+
+        // The stored name; CE replaces the string when it's renamed, so a reference check spots a rename.
+        public static string? RawLabel(object loadout) => LabelField!.GetValue(loadout) as string;
 
         public static object? Parent(object loadout) => ParentProperty!.GetValue(loadout);
 
@@ -115,7 +154,7 @@ namespace BetterCELoadouts
 
         public static void Select(object dialog, object? loadout) => CurrentProperty!.SetValue(dialog, loadout);
 
-        // Number of living pawns assigned to each loadout; CE only drops dead and destroyed pawns from its list when the game is saved.
+        // Number of living player pawns assigned to each loadout; CE keeps banished, sold and (until a save) dead pawns in its list.
         public static Dictionary<object, int> PawnCounts()
         {
             Dictionary<object, int> counts = new();
@@ -123,7 +162,7 @@ namespace BetterCELoadouts
             {
                 foreach (DictionaryEntry entry in assigned)
                 {
-                    if (entry.Key is Pawn { Dead: false, Destroyed: false } && entry.Value is object loadout)
+                    if (entry.Key is Pawn { Dead: false, Destroyed: false } pawn && pawn.Faction == Faction.OfPlayer && entry.Value is object loadout)
                     {
                         counts.TryGetValue(loadout, out int count);
                         counts[loadout] = count + 1;

@@ -34,13 +34,37 @@ namespace BetterCELoadouts
 
         // Collapsed parents, held weakly so loadouts from earlier games are let go.
         private static readonly ConditionalWeakTable<object, object> Collapsed = new();
-        private static Vector2 scrollPosition;
 
-        // Loadout under the mouse since the button went down, and whether it has moved far enough to count as a drag; reset for each new window.
+        // Window state, reset when a new window opens: scroll, the loadout under the mouse since the button went down, and whether it's being dragged.
+        private static System.WeakReference<object>? lastDialog;
+        private static Vector2 scrollPosition;
         private static object? pressed;
+        private static string pressedLabel = "";
         private static Vector2 pressPosition;
         private static bool dragging;
-        private static System.WeakReference<object>? lastDialog;
+        private static float ghostWidth;
+
+        // Rows for the open window, rebuilt when it opens, after the list's own changes, and when CE adds, removes, renames or reparents a loadout.
+        private static readonly List<Row> Rows = new();
+        private static readonly Dictionary<string, string> TruncateCache = new();
+        private static bool dirty = true;
+        private static bool anyLoadouts;
+        private static int lastCount = -1;
+        private static object? lastCurrent;
+        private static string? lastLabel;
+        private static object? lastParent;
+
+        // Fixed text, translated when a window opens.
+        private static string headerText = "";
+        private static string dropText = "";
+        private static string noLoadoutsText = "";
+        private static string newTip = "";
+        private static string copyTip = "";
+        private static string selectToCopyTip = "";
+        private static string ceLoadTip = "";
+        private static string ceSaveTip = "";
+        private static string nothingToSaveTip = "";
+        private static string deleteTip = "";
 
         private readonly struct Row
         {
@@ -49,14 +73,18 @@ namespace BetterCELoadouts
             public readonly int Depth;
             public readonly bool HasChildren;
             public readonly bool Deletable;
+            public readonly string Pawns;
+            public readonly string Tooltip;
 
-            public Row(object loadout, string label, int depth, bool hasChildren, bool deletable)
+            public Row(object loadout, string label, int depth, bool hasChildren, bool deletable, string pawns, string tooltip)
             {
                 Loadout = loadout;
                 Label = label;
                 Depth = depth;
                 HasChildren = hasChildren;
                 Deletable = deletable;
+                Pawns = pawns;
+                Tooltip = tooltip;
             }
         }
 
@@ -66,9 +94,7 @@ namespace BetterCELoadouts
             Event e = Event.current;
             if (lastDialog == null || !lastDialog.TryGetTarget(out object? last) || last != dialog)
             {
-                lastDialog = new System.WeakReference<object>(dialog);
-                pressed = null;
-                dragging = false;
+                StartWindow(dialog);
             }
             if (e.rawType == EventType.MouseDown)
             {
@@ -76,10 +102,9 @@ namespace BetterCELoadouts
                 dragging = false;
             }
 
-            // Read once per pass and shared by everything drawn below.
             bool canManage = CeLoadouts.CanManage;
-            List<object> loadouts = CeLoadouts.Loadouts();
             object? current = CeLoadouts.Current(dialog);
+            RefreshRows(current, canManage);
 
             Rect headerRect = new(rect.x, rect.y, rect.width, HeaderHeight);
             // Bottom of the column: one row of icon buttons for New, Copy, Load and Save loadout.
@@ -88,25 +113,23 @@ namespace BetterCELoadouts
             Rect listRect = new(rect.x, headerRect.yMax + Margin * 2, rect.width, listBottom - headerRect.yMax - Margin * 2);
             if (canManage)
             {
-                DrawControls(controlsRect, dialog, current != null, loadouts.Count > 0);
+                DrawControls(controlsRect, dialog, current != null);
             }
             bool canReparent = CeLoadouts.CanReparent;
             bool clearingParent = dragging && pressed != null && CeLoadouts.Parent(pressed) != null;
             DrawHeader(headerRect, clearingParent);
 
-            List<Row> rows = BuildRows(loadouts, canManage);
-            if (rows.Count == 0)
+            if (Rows.Count == 0)
             {
                 GUI.color = Color.grey;
-                Widgets.Label(listRect, "CE_NoLoadouts".Translate());
+                Widgets.Label(listRect, noLoadoutsText);
                 GUI.color = Color.white;
                 return;
             }
 
-            Dictionary<object, int> pawnCounts = CeLoadouts.PawnCounts();
             bool overHeader = Mouse.IsOver(headerRect);
             bool overList = Mouse.IsOver(listRect);
-            Rect viewRect = new(0f, 0f, listRect.width, rows.Count * RowHeight);
+            Rect viewRect = new(0f, 0f, listRect.width, Rows.Count * RowHeight);
             if (viewRect.height > listRect.height)
             {
                 viewRect.width -= 16f;
@@ -115,20 +138,21 @@ namespace BetterCELoadouts
             Widgets.BeginScrollView(listRect, ref scrollPosition, viewRect);
             object? hovered = null;
             int hoveredIndex = Mathf.FloorToInt(e.mousePosition.y / RowHeight);
-            if (overList && hoveredIndex >= 0 && hoveredIndex < rows.Count)
+            if (overList && hoveredIndex >= 0 && hoveredIndex < Rows.Count)
             {
-                hovered = rows[hoveredIndex].Loadout;
+                hovered = Rows[hoveredIndex].Loadout;
             }
             object? target = dragging && hovered != null && CeLoadouts.CanBeParent(pressed!, hovered) ? hovered : null;
 
-            for (int i = 0; i < rows.Count; i++)
+            for (int i = 0; i < Rows.Count; i++)
             {
-                DrawRow(new Rect(0f, i * RowHeight, viewRect.width, RowHeight), rows[i], i, dialog, current, target, pawnCounts, canManage);
+                DrawRow(new Rect(0f, i * RowHeight, viewRect.width, RowHeight), Rows[i], i, dialog, current, target, canManage);
             }
 
             if (pressed != null && canReparent && !dragging && e.type == EventType.MouseDrag && (e.mousePosition - pressPosition).magnitude > DragThreshold)
             {
                 dragging = true;
+                ghostWidth = Text.CalcSize(pressedLabel).x + Margin * 2;
             }
             Widgets.EndScrollView();
 
@@ -149,13 +173,56 @@ namespace BetterCELoadouts
 
             if (dragging && pressed != null)
             {
-                DrawGhost(pressed);
+                DrawGhost();
             }
             Widgets.DrawLineVertical(rect.xMax + Gap / 2f, listRect.y, listRect.height);
         }
 
+        private static void StartWindow(object dialog)
+        {
+            lastDialog = new System.WeakReference<object>(dialog);
+            scrollPosition = Vector2.zero;
+            pressed = null;
+            dragging = false;
+            dirty = true;
+            TruncateCache.Clear();
+
+            headerText = "CE_Loadouts".Translate();
+            dropText = "BetterCELoadouts_DropToClearParent".Translate();
+            noLoadoutsText = "CE_NoLoadouts".Translate();
+            newTip = "CE_NewLoadout".Translate();
+            copyTip = "CE_CopyLoadout".Translate();
+            selectToCopyTip = "BetterCELoadouts_SelectToCopy".Translate();
+            ceLoadTip = "CE_LoadLoadout".Translate();
+            ceSaveTip = "CE_SaveLoadout".Translate();
+            nothingToSaveTip = "BetterCELoadouts_NothingToSave".Translate();
+            deleteTip = "CE_DeleteLoadout".Translate();
+        }
+
+        // Rebuilds the rows when they're marked dirty, the number of loadouts changes, or the selected loadout changes, is renamed or gets a new parent.
+        private static void RefreshRows(object? current, bool canManage)
+        {
+            int count = CeLoadouts.Count();
+            string? label = current == null ? null : CeLoadouts.RawLabel(current);
+            object? parent = current == null ? null : CeLoadouts.Parent(current);
+            if (!dirty && count == lastCount && current == lastCurrent && ReferenceEquals(label, lastLabel) && parent == lastParent)
+            {
+                return;
+            }
+            dirty = false;
+            lastCount = count;
+            lastCurrent = current;
+            lastLabel = label;
+            lastParent = parent;
+
+            List<object> loadouts = CeLoadouts.Loadouts();
+            anyLoadouts = loadouts.Count > 0;
+            TruncateCache.Clear();
+            BuildRows(loadouts, canManage, CeLoadouts.PawnCounts());
+        }
+
         // Copy, Load and Save set a flag that CE's own (hidden) buttons report as pressed, so its code runs when it next draws.
-        private static void DrawControls(Rect row, object dialog, bool hasLoadout, bool anyLoadouts)
+        private static void DrawControls(Rect row, object dialog, bool hasLoadout)
         {
             float width = (row.width - Margin * 3) / 4f;
             Rect newRect = new(row.x, row.y, width, row.height);
@@ -163,17 +230,18 @@ namespace BetterCELoadouts
             Rect loadRect = new(copyRect.xMax + Margin, row.y, width, row.height);
             Rect saveRect = new(loadRect.xMax + Margin, row.y, width, row.height);
 
-            if (IconButton(newRect, NewIcon, "CE_NewLoadout".Translate(), true) && CeLoadouts.New() is object created)
+            if (IconButton(newRect, NewIcon, newTip, true) && CeLoadouts.New() is object created)
             {
                 CeLoadouts.Select(dialog, created);
             }
-            TaggedString copyTip = hasLoadout ? "CE_CopyLoadout".Translate() : "BetterCELoadouts_SelectToCopy".Translate();
-            if (IconButton(copyRect, CopyIcon, copyTip, hasLoadout))
+            if (IconButton(copyRect, CopyIcon, hasLoadout ? copyTip : selectToCopyTip, hasLoadout))
             {
                 TopBar.CopyRequested = true;
             }
+
+            // With sets, Load and Save open a menu, so they need no tooltip of their own.
             bool sets = LoadoutSets.Available;
-            if (IconButton(loadRect, LoadIcon, sets ? "BetterCELoadouts_LoadTip".Translate() : "CE_LoadLoadout".Translate(), true))
+            if (IconButton(loadRect, LoadIcon, sets ? null : ceLoadTip, true))
             {
                 if (sets)
                 {
@@ -191,8 +259,7 @@ namespace BetterCELoadouts
 
             // With sets, Save is available whenever there's a loadout in the list; saving just the selected one needs a selection.
             bool canSave = sets ? anyLoadouts : hasLoadout;
-            TaggedString saveTip = !canSave ? "BetterCELoadouts_NothingToSave".Translate()
-                : sets ? "BetterCELoadouts_SaveTip".Translate() : "CE_SaveLoadout".Translate();
+            string? saveTip = !canSave ? nothingToSaveTip : sets ? null : ceSaveTip;
             if (IconButton(saveRect, SaveIcon, saveTip, canSave))
             {
                 if (sets)
@@ -216,14 +283,17 @@ namespace BetterCELoadouts
         }
 
         // CE's button background with an icon on it, greyed out and inert when inactive.
-        private static bool IconButton(Rect rect, Texture2D icon, TaggedString tooltip, bool active)
+        private static bool IconButton(Rect rect, Texture2D icon, string? tooltip, bool active)
         {
             bool clicked = Widgets.ButtonText(rect, "", true, true, active);
             Rect iconRect = new(rect.center.x - IconSize / 2f, rect.center.y - IconSize / 2f, IconSize, IconSize);
             GUI.color = active ? Color.white : Color.grey;
             GUI.DrawTexture(iconRect, icon);
             GUI.color = Color.white;
-            TooltipHandler.TipRegion(rect, tooltip);
+            if (tooltip != null)
+            {
+                TooltipHandler.TipRegion(rect, tooltip);
+            }
             return clicked;
         }
 
@@ -238,17 +308,17 @@ namespace BetterCELoadouts
                     Widgets.DrawHighlight(rect);
                 }
                 GUI.color = Color.grey;
-                Widgets.Label(rect, "BetterCELoadouts_DropToClearParent".Translate());
+                Widgets.Label(rect, dropText);
                 GUI.color = Color.white;
             }
             else
             {
-                Widgets.Label(rect, "CE_Loadouts".Translate());
+                Widgets.Label(rect, headerText);
             }
             Text.Anchor = TextAnchor.UpperLeft;
         }
 
-        private static void DrawRow(Rect row, Row entry, int index, object dialog, object? current, object? target, Dictionary<object, int> pawnCounts, bool canManage)
+        private static void DrawRow(Rect row, Row entry, int index, object dialog, object? current, object? target, bool canManage)
         {
             if (index % 2 == 0)
             {
@@ -272,7 +342,7 @@ namespace BetterCELoadouts
             }
             if (entry.Deletable && Mouse.IsOver(deleteRect))
             {
-                TooltipHandler.TipRegion(deleteRect, "CE_DeleteLoadout".Translate());
+                TooltipHandler.TipRegion(deleteRect, deleteTip);
             }
 
             float x = row.x + Margin + (canManage ? DeleteSize + Margin : 0f) + entry.Depth * Indent;
@@ -287,19 +357,18 @@ namespace BetterCELoadouts
             }
             x += ToggleSize + Margin;
 
-            pawnCounts.TryGetValue(entry.Loadout, out int pawns);
             Rect countRect = new(row.xMax - 30f - Margin, row.y, 30f, row.height);
             Rect labelRect = new(x, row.y, countRect.x - x - Margin, row.height);
 
             Text.Anchor = TextAnchor.MiddleLeft;
             Text.WordWrap = false;
-            Widgets.Label(labelRect, entry.Label.Truncate(labelRect.width));
+            Widgets.Label(labelRect, entry.Label.Truncate(labelRect.width, TruncateCache));
             Text.WordWrap = true;
-            if (pawns > 0)
+            if (entry.Pawns.Length > 0)
             {
                 Text.Anchor = TextAnchor.MiddleRight;
                 GUI.color = Color.grey;
-                Widgets.Label(countRect, pawns.ToString());
+                Widgets.Label(countRect, entry.Pawns);
                 GUI.color = Color.white;
             }
             Text.Anchor = TextAnchor.UpperLeft;
@@ -307,12 +376,13 @@ namespace BetterCELoadouts
             Event e = Event.current;
             if (pressed == null && Mouse.IsOver(row))
             {
-                TooltipHandler.TipRegion(row, Tooltip(entry, pawns));
+                TooltipHandler.TipRegion(row, entry.Tooltip);
             }
             if (e.type == EventType.MouseDown && e.button == 0 && Mouse.IsOver(row)
                 && !(entry.HasChildren && Mouse.IsOver(toggleRect)) && !(entry.Deletable && Mouse.IsOver(deleteRect)))
             {
                 pressed = entry.Loadout;
+                pressedLabel = entry.Label;
                 pressPosition = e.mousePosition;
                 e.Use();
             }
@@ -336,6 +406,7 @@ namespace BetterCELoadouts
                     }
                 }
                 CeLoadouts.Remove(loadout);
+                dirty = true;
             }, true));
         }
 
@@ -352,29 +423,28 @@ namespace BetterCELoadouts
                 CeLoadouts.SetParent(loadout, null);
                 SoundDefOf.Tick_High.PlayOneShotOnCamera();
             }
+            dirty = true;
         }
 
         // The dragged loadout's name, following the mouse.
-        private static void DrawGhost(object loadout)
+        private static void DrawGhost()
         {
-            string label = CeLoadouts.Label(loadout);
             Vector2 mouse = Event.current.mousePosition;
-            Rect rect = new(mouse.x + 12f, mouse.y - RowHeight / 2f, Text.CalcSize(label).x + Margin * 2, RowHeight);
+            Rect rect = new(mouse.x + 12f, mouse.y - RowHeight / 2f, ghostWidth, RowHeight);
             Widgets.DrawBoxSolid(rect, GhostBackground);
             Text.Anchor = TextAnchor.MiddleCenter;
-            Widgets.Label(rect, label);
+            Widgets.Label(rect, pressedLabel);
             Text.Anchor = TextAnchor.UpperLeft;
         }
 
-        private static string Tooltip(Row entry, int pawns)
+        private static string Tooltip(object loadout, string label, int pawns)
         {
-            List<string> lines = new() { entry.Label };
-            if (CeLoadouts.Parent(entry.Loadout) is object parent)
+            string tooltip = label;
+            if (CeLoadouts.Parent(loadout) is object parent)
             {
-                lines.Add("BetterCELoadouts_InheritsFrom".Translate(CeLoadouts.Label(parent)));
+                tooltip += "\n" + "BetterCELoadouts_InheritsFrom".Translate(CeLoadouts.Label(parent));
             }
-            lines.Add("BetterCELoadouts_AssignedPawns".Translate(pawns));
-            return string.Join("\n", lines);
+            return tooltip + "\n" + "BetterCELoadouts_AssignedPawns".Translate(pawns);
         }
 
         private static bool IsCollapsed(object loadout) => Collapsed.TryGetValue(loadout, out _);
@@ -386,10 +456,11 @@ namespace BetterCELoadouts
             {
                 Collapsed.Add(loadout, loadout);
             }
+            dirty = true;
         }
 
         // Depth-first list of loadouts under their parents, skipping the children of collapsed parents.
-        private static List<Row> BuildRows(List<object> loadouts, bool canManage)
+        private static void BuildRows(List<object> loadouts, bool canManage, Dictionary<object, int> pawnCounts)
         {
             HashSet<object> known = new(loadouts);
             Dictionary<object, List<object>> children = new();
@@ -411,23 +482,25 @@ namespace BetterCELoadouts
                 }
             }
 
-            List<Row> rows = new();
+            Rows.Clear();
             foreach (object root in roots)
             {
-                AddRows(root, 0, children, rows, canManage);
+                AddRows(root, 0, children, canManage, pawnCounts);
             }
-            return rows;
         }
 
-        private static void AddRows(object loadout, int depth, Dictionary<object, List<object>> children, List<Row> rows, bool canManage)
+        private static void AddRows(object loadout, int depth, Dictionary<object, List<object>> children, bool canManage, Dictionary<object, int> pawnCounts)
         {
             children.TryGetValue(loadout, out List<object>? kids);
-            rows.Add(new Row(loadout, CeLoadouts.Label(loadout), depth, kids != null, canManage && CeLoadouts.CanBeDeleted(loadout)));
+            pawnCounts.TryGetValue(loadout, out int pawns);
+            string label = CeLoadouts.Label(loadout);
+            Rows.Add(new Row(loadout, label, depth, kids != null, canManage && CeLoadouts.CanBeDeleted(loadout),
+                pawns > 0 ? pawns.ToString() : "", Tooltip(loadout, label, pawns)));
             if (kids != null && !IsCollapsed(loadout))
             {
                 foreach (object child in kids)
                 {
-                    AddRows(child, depth + 1, children, rows, canManage);
+                    AddRows(child, depth + 1, children, canManage, pawnCounts);
                 }
             }
         }

@@ -29,7 +29,7 @@ namespace BetterCELoadouts
         private static readonly FieldInfo? ConfigLabel = ConfigType == null ? null : AccessTools.Field(ConfigType, "label");
         private static readonly FieldInfo? ConfigParentLabel = ConfigType == null ? null : AccessTools.Field(ConfigType, "parentLabel");
 
-        public static bool Available => ConfigType != null && FileListType != null && SaveDialogType != null && LoadDialogType != null
+        public static bool Available => CeLoadouts.CanReparent && ConfigType != null && FileListType != null && SaveDialogType != null && LoadDialogType != null
             && ToConfig != null && FromConfig != null && AddLoadout != null && ConfigLabel != null && ConfigParentLabel != null;
 
         public static void SaveAll()
@@ -92,7 +92,7 @@ namespace BetterCELoadouts
             catch (Exception exception)
             {
                 Log.Error($"[Better CE Loadouts] Could not read the loadout set '{file.FullName}': {exception}");
-                Messages.Message("BetterCELoadouts_LoadFailed".Translate(file.Name), MessageTypeDefOf.RejectInput, false);
+                Messages.Message("BetterCELoadouts_LoadFailed".Translate(Path.GetFileNameWithoutExtension(file.Name)), MessageTypeDefOf.RejectInput, false);
                 return;
             }
 
