@@ -172,6 +172,9 @@ namespace BetterCELoadouts
             return counts;
         }
 
+        // The loadout CE has assigned to the pawn, or null.
+        public static object? LoadoutOf(Pawn pawn) => AssignedProperty!.GetValue(null) is IDictionary assigned && assigned.Contains(pawn) ? assigned[pawn] : null;
+
         // Orders the dialog's item list: things that suit the loadout's weapons first, then the rest, with items the colony has ahead
         // of those it doesn't within each group. CE's alphabetical order is kept inside every group.
         public static void SortSourceByStock(object dialog, HashSet<ThingDef> mapDefs, HashSet<ThingDef> loadoutAmmo)

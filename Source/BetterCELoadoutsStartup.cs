@@ -42,6 +42,19 @@ namespace BetterCELoadouts
                 Log.Warning("[Better CE Loadouts] Combat Extended's item tooltip has changed; weapon tooltips are left unchanged.");
             }
 
+            if (PawnComparison.Available)
+            {
+                if (PawnComparison.WeightTipTarget() is MethodInfo weightTip && PawnComparison.BulkTipTarget() is MethodInfo bulkTip)
+                {
+                    harmony.Patch(weightTip, postfix: Method(typeof(PawnComparison), nameof(PawnComparison.WeightTipPostfix)));
+                    harmony.Patch(bulkTip, postfix: Method(typeof(PawnComparison), nameof(PawnComparison.BulkTipPostfix)));
+                }
+            }
+            else
+            {
+                Log.Warning("[Better CE Loadouts] Combat Extended's loadout mass and bulk code has changed; loadouts can't be compared with a colonist.");
+            }
+
             if (CeLoadouts.CanSort)
             {
                 harmony.Patch(AccessTools.Method(dialog, "SetSource"), postfix: Method(typeof(Patch_Dialog_ManageLoadouts), nameof(Patch_Dialog_ManageLoadouts.SetSourcePostfix)));

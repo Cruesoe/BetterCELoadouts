@@ -23,6 +23,7 @@ namespace BetterCELoadouts
         }
 
         // Draws the loadout list, then hands CE the rest of the window, moved up over its empty top bar when the list has its buttons.
+        // While a colonist is chosen to compare with, CE's Mass and Bulk bars measure against them until the finalizer puts CE's values back.
         public static void DoWindowContentsPrefix(Window __instance, ref Rect canvas, out bool __state)
         {
             __state = false;
@@ -32,6 +33,10 @@ namespace BetterCELoadouts
                 LoadoutAmmo.RefreshIfChanged(__instance);
             }
             LoadoutNavigator.Draw(new Rect(canvas.x, canvas.y, LoadoutNavigator.Width, canvas.height), __instance);
+            if (PawnComparison.Available)
+            {
+                PawnComparison.Apply();
+            }
 
             float offset = LoadoutNavigator.Width + LoadoutNavigator.Gap;
             float lift = CeLoadouts.CanManage ? TopBarSpace : 0f;
@@ -47,6 +52,7 @@ namespace BetterCELoadouts
             {
                 Widgets.EndGroup();
             }
+            PawnComparison.Restore();
             TopBar.CopyRequested = false;
             TopBar.LoadRequested = false;
             TopBar.SaveRequested = false;

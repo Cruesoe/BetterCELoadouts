@@ -107,9 +107,15 @@ namespace BetterCELoadouts
             RefreshRows(current, canManage);
 
             Rect headerRect = new(rect.x, rect.y, rect.width, HeaderHeight);
-            // Bottom of the column: one row of icon buttons for New, Copy, Load and Save loadout.
+            // Bottom of the column: one row of icon buttons for New, Copy, Load and Save loadout, with the Compare button above it.
             Rect controlsRect = new(rect.x, rect.yMax - HeaderHeight, rect.width, HeaderHeight);
             float listBottom = canManage ? controlsRect.y - Margin : rect.yMax;
+            if (PawnComparison.Available)
+            {
+                Rect compareRect = new(rect.x, listBottom - HeaderHeight, rect.width, HeaderHeight);
+                PawnComparison.DrawButton(compareRect, dialog, current);
+                listBottom = compareRect.y - Margin;
+            }
             Rect listRect = new(rect.x, headerRect.yMax + Margin * 2, rect.width, listBottom - headerRect.yMax - Margin * 2);
             if (canManage)
             {
