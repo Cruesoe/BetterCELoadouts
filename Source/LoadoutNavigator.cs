@@ -7,15 +7,14 @@ using Verse.Sound;
 
 namespace BetterCELoadouts
 {
-    // The loadout tree drawn down the left of CE's Manage loadouts window: parents with their children indented beneath.
-    // Drag a loadout onto another to make it a child, or onto the header or empty space to make it top-level.
+    // Dropping a loadout on another makes it a child; on the header or empty space, top-level.
     [StaticConstructorOnStartup]
     internal static class LoadoutNavigator
     {
         public const float Width = 220f;
         public const float Gap = 12f;
 
-        // Match CE's dialog: 30px top bar, 6px margins, 28px rows.
+        // Match CE's dialog.
         private const float HeaderHeight = 30f;
         private const float Margin = 6f;
         private const float RowHeight = 28f;
@@ -35,7 +34,7 @@ namespace BetterCELoadouts
         // Collapsed parents, held weakly so loadouts from earlier games are let go.
         private static readonly ConditionalWeakTable<object, object> Collapsed = new();
 
-        // Window state, reset when a new window opens: scroll, the loadout under the mouse since the button went down, and whether it's being dragged.
+        // Window state, reset when a new window opens.
         private static System.WeakReference<object>? lastDialog;
         private static Vector2 scrollPosition;
         private static object? pressed;
@@ -44,7 +43,7 @@ namespace BetterCELoadouts
         private static bool dragging;
         private static float ghostWidth;
 
-        // Rows for the open window, rebuilt when it opens, after the list's own changes, and when CE adds, removes, renames or reparents a loadout.
+        // Rows for the open window, rebuilt when it opens or the loadouts change.
         private static readonly List<Row> Rows = new();
         private static readonly Dictionary<string, string> TruncateCache = new();
         private static bool dirty = true;
@@ -107,7 +106,6 @@ namespace BetterCELoadouts
             RefreshRows(current, canManage);
 
             Rect headerRect = new(rect.x, rect.y, rect.width, HeaderHeight);
-            // Bottom of the column: one row of icon buttons for New, Copy, Load and Save loadout, with the Compare button above it.
             Rect controlsRect = new(rect.x, rect.yMax - HeaderHeight, rect.width, HeaderHeight);
             float listBottom = canManage ? controlsRect.y - Margin : rect.yMax;
             if (PawnComparison.Available)
@@ -205,7 +203,6 @@ namespace BetterCELoadouts
             deleteTip = "CE_DeleteLoadout".Translate();
         }
 
-        // Rebuilds the rows when they're marked dirty, the number of loadouts changes, or the selected loadout changes, is renamed or gets a new parent.
         private static void RefreshRows(object? current, bool canManage)
         {
             int count = CeLoadouts.Count();
@@ -227,7 +224,6 @@ namespace BetterCELoadouts
             BuildRows(loadouts, canManage, CeLoadouts.PawnCounts());
         }
 
-        // Copy, Load and Save set a flag that CE's own (hidden) buttons report as pressed, so its code runs when it next draws.
         private static void DrawControls(Rect row, object dialog, bool hasLoadout)
         {
             float width = (row.width - Margin * 3) / 4f;
@@ -288,7 +284,6 @@ namespace BetterCELoadouts
             }
         }
 
-        // CE's button background with an icon on it, greyed out and inert when inactive.
         private static bool IconButton(Rect rect, Texture2D icon, string? tooltip, bool active)
         {
             bool clicked = Widgets.ButtonText(rect, "", true, true, active);
@@ -303,7 +298,6 @@ namespace BetterCELoadouts
             return clicked;
         }
 
-        // Shows where to drop to make a loadout top-level while one with a parent is being dragged.
         private static void DrawHeader(Rect rect, bool clearingParent)
         {
             Text.Anchor = TextAnchor.MiddleLeft;
@@ -340,7 +334,6 @@ namespace BetterCELoadouts
             }
             Widgets.DrawHighlightIfMouseover(row);
 
-            // Delete buttons line up down the left edge, ahead of the tree's indentation.
             Rect deleteRect = new(row.x + Margin, row.y + (row.height - DeleteSize) / 2f, DeleteSize, DeleteSize);
             if (entry.Deletable && Widgets.ButtonImage(deleteRect, TexButton.Delete))
             {
@@ -394,7 +387,7 @@ namespace BetterCELoadouts
             }
         }
 
-        // Asks first, since one click on the bin deletes; CE's own delete then moves its colonists to the default loadout.
+        // CE's delete moves the loadout's colonists to the default loadout.
         private static void ConfirmDelete(object dialog, object loadout)
         {
             Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation("BetterCELoadouts_ConfirmDelete".Translate(CeLoadouts.Label(loadout)), () =>
@@ -432,7 +425,6 @@ namespace BetterCELoadouts
             dirty = true;
         }
 
-        // The dragged loadout's name, following the mouse.
         private static void DrawGhost()
         {
             Vector2 mouse = Event.current.mousePosition;
@@ -465,7 +457,7 @@ namespace BetterCELoadouts
             dirty = true;
         }
 
-        // Depth-first list of loadouts under their parents, skipping the children of collapsed parents.
+        // Depth-first, skipping the children of collapsed parents.
         private static void BuildRows(List<object> loadouts, bool canManage, Dictionary<object, int> pawnCounts)
         {
             HashSet<object> known = new(loadouts);

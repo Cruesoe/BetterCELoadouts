@@ -8,22 +8,19 @@ using Verse;
 
 namespace BetterCELoadouts
 {
-    // Patches on CE's Dialog_ManageLoadouts: the wider window, the loadout list beside CE's own contents, and the item list's order.
     internal static class Patch_Dialog_ManageLoadouts
     {
-        // CE's top bar and the margin under it (30px of buttons, two 6px margins), left empty once the list takes over its buttons.
+        // CE's 30px top bar plus two 6px margins.
         private const float TopBarSpace = 42f;
 
         private static readonly ConditionalWeakTable<object, HashSet<ThingDef>> MapDefs = new();
 
-        // Widens the window to fit the loadout list.
         public static void InitialSizePostfix(ref Vector2 __result)
         {
             __result.x = Mathf.Min(__result.x + LoadoutNavigator.Width + LoadoutNavigator.Gap, UI.screenWidth);
         }
 
-        // Draws the loadout list, then hands CE the rest of the window, moved up over its empty top bar when the list has its buttons.
-        // While a colonist is chosen to compare with, CE's Mass and Bulk bars measure against them until the finalizer puts CE's values back.
+        // While a colonist is chosen to compare with, CE's Mass and Bulk bars use theirs until the finalizer restores CE's values.
         public static void DoWindowContentsPrefix(Window __instance, ref Rect canvas, out bool __state)
         {
             __state = false;

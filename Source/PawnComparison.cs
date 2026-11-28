@@ -9,8 +9,7 @@ using Verse;
 
 namespace BetterCELoadouts
 {
-    // Measures the loadout's Mass and Bulk bars against one colonist instead of CE's median colonist: their carrying capacity less their worn apparel.
-    // CE's bars and tooltips read its median capacity fields, so those are swapped for the colonist's while CE draws, then put back.
+    // CE's Mass and Bulk bars read its median capacity fields, so the chosen colonist's are swapped in while CE draws, then put back.
     internal static class PawnComparison
     {
         private static readonly Type? UtilityType = AccessTools.TypeByName("CombatExtended.Utility_Loadouts");
@@ -21,7 +20,7 @@ namespace BetterCELoadouts
 
         public static bool Available => MedianWeightField != null && MedianBulkField != null && WeightProperty != null && BulkProperty != null;
 
-        // Window state, reset when a new window opens (the stats and fixed text are looked up then too). CE pauses the game while its window is open, so capacities are worked out once per choice.
+        // Window state, reset when a new window opens; CE pauses the game, so capacities are worked out once per choice.
         private static System.WeakReference<object>? lastDialog;
         private static StatDef? carryWeight;
         private static StatDef? carryBulk;
@@ -49,7 +48,6 @@ namespace BetterCELoadouts
             return UtilityType == null || CeLoadouts.LoadoutType == null ? null : AccessTools.Method(UtilityType, name, new[] { CeLoadouts.LoadoutType });
         }
 
-        // The Compare button: greyed out until a loadout is selected, otherwise a menu of the median colonist and every free colonist.
         public static void DrawButton(Rect rect, object dialog, object? loadout)
         {
             if (lastDialog == null || !lastDialog.TryGetTarget(out object? last) || last != dialog)
@@ -77,7 +75,6 @@ namespace BetterCELoadouts
             TooltipHandler.TipRegion(rect, active ? compareTip : selectTip);
         }
 
-        // Swaps the chosen colonist's capacities into CE's median fields for the rest of CE's drawing.
         public static void Apply()
         {
             if (pawn == null || applied)
@@ -102,7 +99,6 @@ namespace BetterCELoadouts
             applied = false;
         }
 
-        // Adds who the bars are measured against to CE's Mass and Bulk tooltips.
         public static void WeightTipPostfix(ref string __result)
         {
             if (applied)
@@ -125,7 +121,6 @@ namespace BetterCELoadouts
             float bulk = (float)BulkProperty!.GetValue(loadout)!;
             List<FloatMenuOption> options = new() { new FloatMenuOption("BetterCELoadouts_MedianColonist".Translate().CapitalizeFirst(), () => Choose(null)) };
 
-            // Colonists using this loadout come first, then everyone else, each by name.
             List<Pawn> colonists = PawnsFinder.AllMaps_FreeColonists.ToList();
             foreach (Pawn colonist in colonists.OrderBy(p => CeLoadouts.LoadoutOf(p) == loadout ? 0 : 1).ThenBy(p => p.LabelShortCap))
             {
@@ -158,7 +153,7 @@ namespace BetterCELoadouts
                 Format(carryBulk, bulkCapacity + apparelBulk), Format(carryBulk, apparelBulk));
         }
 
-        // Carrying capacity left once worn apparel is counted, as CE's inventory counts it (apparel mass and worn bulk), and the apparel's share.
+        // Capacity left after worn apparel, counted as CE's inventory does (apparel mass and worn bulk).
         private static (float Weight, float Bulk, float ApparelWeight, float ApparelBulk) Capacities(Pawn colonist)
         {
             float apparelWeight = 0f;

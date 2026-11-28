@@ -4,7 +4,7 @@ using Verse;
 
 namespace BetterCELoadouts
 {
-    // The ammo that fits the weapons in a loadout, from each weapon's CE ammo set (and its under-barrel launcher's, if it has one).
+    // Ammo for a loadout's weapons, including under-barrel launchers.
     internal static class LoadoutAmmo
     {
         private static readonly ConditionalWeakTable<object, StrongBox<int>> LastSeen = new();
@@ -28,7 +28,6 @@ namespace BetterCELoadouts
             return ammo;
         }
 
-        // Re-sorts the dialog's item list when the selected loadout, or the weapons in it, change.
         public static void RefreshIfChanged(object dialog)
         {
             object? loadout = CeLoadouts.Current(dialog);

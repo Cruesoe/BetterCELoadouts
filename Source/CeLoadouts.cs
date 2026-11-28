@@ -10,7 +10,6 @@ using Verse;
 
 namespace BetterCELoadouts
 {
-    // Reflection access to Combat Extended's loadout types, so one build works with every CE version.
     internal static class CeLoadouts
     {
         public static readonly Type? DialogType = AccessTools.TypeByName("CombatExtended.Dialog_ManageLoadouts");
@@ -55,7 +54,7 @@ namespace BetterCELoadouts
 
         public static bool CanSort => SourceField != null && SourceGenericField != null && GreyedOutField != null && LambdaProperty != null && ItemDefField != null;
 
-        // Every weapon in the loadout, including the ones it inherits from its parents.
+        // Includes weapons inherited from parents.
         public static List<ThingDef> WeaponsIn(object loadout)
         {
             List<ThingDef> weapons = new();
@@ -72,7 +71,7 @@ namespace BetterCELoadouts
             return weapons;
         }
 
-        // A hash of the weapons in the loadout and its parents, read from each one's own slots without building CE's combined list.
+        // Hash of the weapons in the loadout and its parents, read without building CE's combined list.
         public static int WeaponSignature(object loadout)
         {
             int signature = RuntimeHelpers.GetHashCode(loadout);
@@ -121,7 +120,7 @@ namespace BetterCELoadouts
             return loadouts.Cast<object>().Where(l => !(bool)DefaultField!.GetValue(l)!).ToList();
         }
 
-        // Number of loadouts in CE's list, its default included.
+        // Includes CE's default loadout.
         public static int Count() => LoadoutsProperty!.GetValue(null) is IList loadouts ? loadouts.Count : 0;
 
         public static string Label(object loadout) => LabelCapProperty!.GetValue(loadout) as string ?? "";
@@ -131,13 +130,13 @@ namespace BetterCELoadouts
 
         public static object? Parent(object loadout) => ParentProperty!.GetValue(loadout);
 
-        // Same rule as CE's Parent loadout menu: a loadout can't become a parent of itself or of its own ancestors.
+        // As in CE's Parent loadout menu: a loadout can't be a parent of itself or its ancestors.
         public static bool CanBeParent(object child, object parent)
         {
             return parent != child && !(AncestorsProperty!.GetValue(parent) is IEnumerable ancestors && ancestors.Cast<object>().Contains(child));
         }
 
-        // Sets the parent the way CE's Parent loadout menu does; null makes it a top-level loadout.
+        // null makes it top-level.
         public static void SetParent(object child, object? parent)
         {
             ParentIdProperty!.SetValue(child, parent == null ? 0 : (int)UniqueIdProperty!.GetValue(parent)!);
@@ -145,7 +144,7 @@ namespace BetterCELoadouts
 
         public static bool CanBeDeleted(object loadout) => (bool)CanBeDeletedField!.GetValue(loadout)!;
 
-        // CE's own create and delete, which are also its multiplayer sync points.
+        // CE's own create and delete.
         public static object? New() => NewMethod!.Invoke(null, null);
 
         public static void Remove(object loadout) => RemoveMethod!.Invoke(null, new[] { loadout });
@@ -172,11 +171,9 @@ namespace BetterCELoadouts
             return counts;
         }
 
-        // The loadout CE has assigned to the pawn, or null.
         public static object? LoadoutOf(Pawn pawn) => AssignedProperty!.GetValue(null) is IDictionary assigned && assigned.Contains(pawn) ? assigned[pawn] : null;
 
-        // Orders the dialog's item list: things that suit the loadout's weapons first, then the rest, with items the colony has ahead
-        // of those it doesn't within each group. CE's alphabetical order is kept inside every group.
+        // Items suiting the loadout's weapons first, then items the colony has, keeping CE's alphabetical order within each group.
         public static void SortSourceByStock(object dialog, HashSet<ThingDef> mapDefs, HashSet<ThingDef> loadoutAmmo)
         {
             if (SourceField!.GetValue(dialog) is IList items && items.Count > 1)

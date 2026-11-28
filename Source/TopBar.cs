@@ -6,8 +6,7 @@ using Verse;
 
 namespace BetterCELoadouts
 {
-    // Takes every button out of CE's top bar (the loadout list does their jobs now).
-    // Copy, Load and Save keep running CE's own code: a click in the list sets a flag that CE's hidden button then reports as pressed.
+    // Copy, Load and Save still run CE's code: the loadout list sets a flag that CE's hidden button reports as pressed.
     internal static class TopBar
     {
         // CE's top bar: seven buttons 6px apart, in the order Select, New, Copy, Delete, Load, Save, Parent.

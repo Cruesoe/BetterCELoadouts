@@ -8,7 +8,6 @@ using Verse;
 
 namespace BetterCELoadouts
 {
-    // Damage per second and one- or two-handedness added to CE's mass and bulk tooltip for weapons.
     internal static class WeaponTip
     {
         // CE's tag for weapons usable with a shield; every other weapon is two-handed.
