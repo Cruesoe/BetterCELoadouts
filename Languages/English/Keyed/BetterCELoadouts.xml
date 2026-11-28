@@ -21,4 +21,15 @@
   <BetterCELoadouts_RangedDpsAmmo>Damage per second: {0} ({1}, every shot hitting, no reloads)</BetterCELoadouts_RangedDpsAmmo>
   <BetterCELoadouts_OneHanded>One-handed</BetterCELoadouts_OneHanded>
   <BetterCELoadouts_TwoHanded>Two-handed</BetterCELoadouts_TwoHanded>
+  <BetterCELoadouts_CompareWith>Compare: {0}</BetterCELoadouts_CompareWith>
+  <BetterCELoadouts_MedianColonist>median colonist</BetterCELoadouts_MedianColonist>
+  <BetterCELoadouts_CompareTip>Choose whose carrying capacity the Mass and Bulk bars measure this loadout against: the median colonist, as Combat Extended does, or one colonist, less what their worn apparel weighs and takes up. The menu shows whether the loadout fits each colonist.</BetterCELoadouts_CompareTip>
+  <BetterCELoadouts_SelectToCompare>Select a loadout to compare it with a colonist</BetterCELoadouts_SelectToCompare>
+  <BetterCELoadouts_CompareOption>{0} ({1})</BetterCELoadouts_CompareOption>
+  <BetterCELoadouts_Fits>fits</BetterCELoadouts_Fits>
+  <BetterCELoadouts_TooHeavy>too heavy</BetterCELoadouts_TooHeavy>
+  <BetterCELoadouts_TooBulky>too bulky</BetterCELoadouts_TooBulky>
+  <BetterCELoadouts_TooHeavyAndBulky>too heavy and too bulky</BetterCELoadouts_TooHeavyAndBulky>
+  <BetterCELoadouts_ComparedWeight>Compared with {0}: carrying capacity {1}, less {2} of worn apparel.</BetterCELoadouts_ComparedWeight>
+  <BetterCELoadouts_ComparedBulk>Compared with {0}: carrying capacity {1}, less {2} taken up by worn apparel.</BetterCELoadouts_ComparedBulk>
 </LanguageData>

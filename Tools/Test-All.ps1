@@ -1,6 +1,6 @@
 param([string]$RimWorldRoot = 'C:\Program Files (x86)\Steam\steamapps\common\RimWorld')
 
-# Checks run by Deploy-Mod before deploying: translation keys (ours and the CE keys we reuse), textures and metadata.
+# Checks translation keys (ours and the CE keys we reuse), textures and metadata.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $failures = New-Object System.Collections.Generic.List[string]
@@ -22,7 +22,7 @@ foreach ($file in Get-ChildItem (Join-Path $root 'Languages\English\Keyed') -Fil
 foreach ($key in $used) { if (-not $keyed.Contains($key)) { $failures.Add("Missing translation: $key") } }
 foreach ($key in $keyed) { if (-not $used.Contains($key)) { $failures.Add("Unused translation: $key") } }
 
-# CE's own keys the code reuses must exist in the official Combat Extended (Workshop 3495749827), when it's installed.
+# CE keys the code reuses must exist in Combat Extended (Workshop 3495749827) when it's installed.
 $ceKeyed = Join-Path $RimWorldRoot '..\..\workshop\content\294100\3495749827\Languages\English\Keyed'
 if (Test-Path $ceKeyed) {
     $ceKeys = New-Object System.Collections.Generic.HashSet[string]

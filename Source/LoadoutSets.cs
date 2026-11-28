@@ -11,8 +11,7 @@ using Verse;
 
 namespace BetterCELoadouts
 {
-    // Saves every loadout in the list to one file, and loads a file of loadouts back in, using CE's own loadout config, file dialogs and add-loadout code.
-    // A set file is <LoadoutSet> holding one CE <LoadoutConfig> per loadout, kept in its own folder so CE's single-loadout list never shows it.
+    // A set file is a <LoadoutSet> of CE <LoadoutConfig>s, kept in its own folder so CE's single-loadout list never shows it.
     internal static class LoadoutSets
     {
         private const string Folder = "loadoutset";
@@ -42,7 +41,7 @@ namespace BetterCELoadouts
             Open(LoadDialogType!, nameof(Read));
         }
 
-        // CE's file dialogs are internal: they're built by reflection with a delegate for the file action, and every one lists the loadoutset folder.
+        // CE's file dialogs are internal, so they're built by reflection with a delegate for the file action.
         private static void Open(Type dialogType, string handler, params object[] extra)
         {
             Type action = typeof(Action<,>).MakeGenericType(typeof(FileInfo), FileListType!);
@@ -128,9 +127,7 @@ namespace BetterCELoadouts
             return configs;
         }
 
-        // Adds each loadout from its config, parents first, one at a time so CE renames any whose name is taken. Children are pointed at the
-        // copies added here: CE links a parent by name, which would pick an older loadout of the same name when the loaded one was renamed.
-        // A loadout CE can't build is skipped and logged. Returns how many were added.
+        // Adds parents first, one at a time so CE renames clashes, and links children to these copies since CE links parents by name.
         private static int AddAll(List<object> configs, List<string> missing, FileInfo file)
         {
             Dictionary<string, object> byLabel = new();

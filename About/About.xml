@@ -14,6 +14,8 @@ A list of all your loadouts runs down the left of the window. Child loadouts sit
 
 When adding items, ammo that fits the weapons in the loadout comes first, then the items your colony has, then everything else (still greyed out, as in Combat Extended). A weapon's tooltip also shows its damage per second and whether it's one-handed (usable with a shield) or two-handed.
 
+The Compare button above the icon buttons measures the Mass and Bulk bars against one colonist instead of the median colonist: their carrying capacity, less what their worn apparel weighs and takes up. Its menu shows whether the loadout fits each colonist, with the colonists using it listed first.
+
 Requires Combat Extended. Safe to add or remove mid-save: your loadouts belong to Combat Extended and are unchanged.</description>
   <modDependencies>
     <li>

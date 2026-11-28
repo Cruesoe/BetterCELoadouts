@@ -8,7 +8,6 @@ using Verse;
 
 namespace BetterCELoadouts
 {
-    // Reflection access to Combat Extended's ammo sets, resolved once.
     internal static class CeAmmo
     {
         private static readonly Type? AmmoUserType = AccessTools.TypeByName("CombatExtended.CompProperties_AmmoUser");
@@ -45,7 +44,6 @@ namespace BetterCELoadouts
             }
         }
 
-        // Shotgun-style projectiles fire several pellets per shot.
         public static int Pellets(ProjectileProperties projectile)
         {
             return ProjectileType?.IsInstanceOfType(projectile) == true && PelletField?.GetValue(projectile) is int pellets && pellets > 0 ? pellets : 1;
